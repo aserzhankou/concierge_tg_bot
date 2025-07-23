@@ -1,0 +1,4 @@
+python-telegram-bot==22.3
+python-dotenv==1.0.0  # For better environment variable management
+pytz==2024.1  # For proper timezone handling
+typing-extensions>=4.5.0  # For better type hints support 
