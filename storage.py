@@ -62,19 +62,17 @@ class ChallengeStorage:
     def increment_attempts(self, message_id: int) -> int:
         """Increment attempt count for a challenge and return new count"""
         with self._get_connection() as conn:
-            conn.execute(
-                "UPDATE challenges SET attempts = attempts + 1 WHERE message_id = ?",
-                (message_id,)
-            )
-            conn.commit()
-            
-            # Get the updated attempt count
+            # Use atomic operation with RETURNING clause
             cursor = conn.execute(
-                "SELECT attempts FROM challenges WHERE message_id = ?",
+                "UPDATE challenges SET attempts = attempts + 1 WHERE message_id = ? RETURNING attempts",
                 (message_id,)
             )
             row = cursor.fetchone()
-            return row[0] if row else 0
+            if not row:
+                logger.warning(f"Attempted to increment attempts for non-existent challenge {message_id}")
+                return 0
+            conn.commit()
+            return row[0]
 
     def get_challenge(self, message_id: int):
         """Get challenge by message ID"""

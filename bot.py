@@ -6,16 +6,13 @@ import json
 from datetime import datetime
 from telegram import Update, ChatPermissions, ChatMember, ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup, Chat
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ChatMemberHandler
-from telegram.ext import JobQueue, Job, CallbackQueryHandler
+from telegram.ext import CallbackQueryHandler
 from telegram.error import TelegramError
-import threading
 from storage import ChallengeStorage
 import traceback
 import html
 from messages import *  # Import all message constants
-import asyncio
 from aiohttp import web
-import aiohttp
 
 try:
     from test_config import DEBUG_MODE, LOG_LEVEL
@@ -185,10 +182,30 @@ async def create_http_server():
 def generate_answer_options(correct_answer: int) -> list:
     """Generate 4 options with only one correct answer"""
     options = [correct_answer]
-    while len(options) < 4:
-        wrong_answer = correct_answer + random.randint(-5, 5)
-        if wrong_answer != correct_answer and wrong_answer not in options:
+    attempts = 0
+    range_offset = 5
+    
+    while len(options) < 4 and attempts < 50:  # Prevent infinite loop
+        wrong_answer = correct_answer + random.randint(-range_offset, range_offset)
+        if wrong_answer != correct_answer and wrong_answer not in options and wrong_answer > 0:
             options.append(wrong_answer)
+        attempts += 1
+        
+        if attempts % 10 == 0:  # Expand range if struggling
+            range_offset += 5
+            
+    # If we still don't have enough options, fill with simple increments
+    if len(options) < 4:
+        for i in range(1, 20):
+            if len(options) >= 4:
+                break
+            candidate = correct_answer + i
+            if candidate not in options and candidate > 0:
+                options.append(candidate)
+            candidate = correct_answer - i
+            if len(options) < 4 and candidate not in options and candidate > 0:
+                options.append(candidate)
+    
     random.shuffle(options)
     return options
 
@@ -554,9 +571,32 @@ async def kick_user_job(context: ContextTypes.DEFAULT_TYPE):
         if not challenge:
             return
 
-        # First kick the user
-        await context.bot.ban_chat_member(challenge['chat_id'], challenge['user_id'])
-        await context.bot.unban_chat_member(challenge['chat_id'], challenge['user_id'])
+        # First kick the user with proper error handling
+        try:
+            await context.bot.ban_chat_member(challenge['chat_id'], challenge['user_id'])
+            await context.bot.unban_chat_member(challenge['chat_id'], challenge['user_id'])
+            logger.info(
+                "User kicked due to timeout",
+                extra={
+                    'chat_id': challenge['chat_id'],
+                    'user_id': challenge['user_id'],
+                    'message_id': message_id,
+                    'event_type': 'challenge_timeout'
+                }
+            )
+        except TelegramError as e:
+            logger.error(
+                f"Failed to kick user: {str(e)}",
+                extra={
+                    'chat_id': challenge['chat_id'],
+                    'user_id': challenge['user_id'],
+                    'message_id': message_id,
+                    'event_type': 'kick_failed',
+                    'error_type': type(e).__name__
+                }
+            )
+            # Don't proceed with cleanup if kick failed
+            return
         
         # Then delete the challenge message
         try:
@@ -575,18 +615,10 @@ async def kick_user_job(context: ContextTypes.DEFAULT_TYPE):
             )
         
         storage.remove_challenge(message_id)
-        logger.info(
-            "User kicked due to timeout",
-            extra={
-                'chat_id': challenge['chat_id'],
-                'user_id': challenge['user_id'],
-                'message_id': message_id,
-                'event_type': 'challenge_timeout'
-            }
-        )
-    except TelegramError as e:
+        
+    except Exception as e:
         logger.error(
-            f"Error in kick job: {str(e)}",
+            f"Unexpected error in kick job: {str(e)}",
             extra={
                 'message_id': message_id,
                 'event_type': 'kick_error',
