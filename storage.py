@@ -22,6 +22,7 @@ class ChallengeStorage:
                     chat_id INTEGER NOT NULL,
                     user_id INTEGER NOT NULL,
                     answer INTEGER NOT NULL,
+                    attempts INTEGER NOT NULL DEFAULT 0,
                     created_at TIMESTAMP NOT NULL,
                     expires_at TIMESTAMP NOT NULL
                 )
@@ -48,15 +49,32 @@ class ChallengeStorage:
                 conn.execute(
                     """
                     INSERT INTO challenges 
-                    (message_id, chat_id, user_id, answer, created_at, expires_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (message_id, chat_id, user_id, answer, attempts, created_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (message_id, chat_id, user_id, answer, created_at.isoformat(), expires_at)
+                    (message_id, chat_id, user_id, answer, 0, created_at.isoformat(), expires_at)
                 )
                 conn.commit()
                 logger.debug(f"Added challenge for message {message_id} to database")
             except sqlite3.IntegrityError:
                 logger.warning(f"Challenge with message_id {message_id} already exists")
+
+    def increment_attempts(self, message_id: int) -> int:
+        """Increment attempt count for a challenge and return new count"""
+        with self._get_connection() as conn:
+            conn.execute(
+                "UPDATE challenges SET attempts = attempts + 1 WHERE message_id = ?",
+                (message_id,)
+            )
+            conn.commit()
+            
+            # Get the updated attempt count
+            cursor = conn.execute(
+                "SELECT attempts FROM challenges WHERE message_id = ?",
+                (message_id,)
+            )
+            row = cursor.fetchone()
+            return row[0] if row else 0
 
     def get_challenge(self, message_id: int):
         """Get challenge by message ID"""
@@ -72,8 +90,9 @@ class ChallengeStorage:
                     'chat_id': row[1],
                     'user_id': row[2],
                     'answer': row[3],
-                    'created_at': datetime.fromisoformat(row[4]),
-                    'expires_at': row[5]
+                    'attempts': row[4] if row[4] is not None else 0,
+                    'created_at': datetime.fromisoformat(str(row[5])),
+                    'expires_at': row[6]
                 }
             return None
 
@@ -107,14 +126,15 @@ class ChallengeStorage:
                 """,
                 (chat_id, user_id, datetime.now().timestamp())
             )
-            return [
-                {
+            results = []
+            for row in cursor.fetchall():
+                results.append({
                     'message_id': row[0],
                     'chat_id': row[1],
                     'user_id': row[2],
                     'answer': row[3],
-                    'created_at': datetime.fromisoformat(row[4]),
-                    'expires_at': row[5]
-                }
-                for row in cursor.fetchall()
-            ] 
+                    'attempts': row[4] if row[4] is not None else 0,
+                    'created_at': datetime.fromisoformat(str(row[5])),
+                    'expires_at': row[6]
+                })
+            return results 

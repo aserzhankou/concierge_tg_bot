@@ -94,3 +94,4 @@ ipython_config.py
 # Documentation
 docs/_build/
 /site
+challenges.db

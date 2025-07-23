@@ -11,9 +11,11 @@ ERR_INVALID_CALLBACK = "Неверный формат ответа!"
 ERR_GENERIC = "Извините, что-то пошло не так!"
 
 # Challenge messages
-WELCOME_CHALLENGE = "Добро пожаловать, {user_mention}! Чтобы получить доступ к чату, решите математическую задачу:\n<b>{equation}</b>\nУ вас есть 3 минуты."
-CHALLENGE_CORRECT = "✅ Все верно! Добро пожаловать в чат, {user_mention}!"
+WELCOME_CHALLENGE = "Добро пожаловать, {user_mention}! Чтобы получить доступ к чату, решите простой вопрос:\n<b>{question}</b>\nУ вас есть 3 минуты."
+CHALLENGE_CORRECT = "✅ Все верно! Добро пожаловать в группу {channel_name}, {user_mention}!"
 CHALLENGE_WRONG = "❌ Неверный ответ, попробуйте ещё раз!"
+CHALLENGE_WRONG_WITH_ATTEMPTS = "❌ Неверный ответ! Осталось попыток: {remaining_attempts}"
+CHALLENGE_MAX_ATTEMPTS = "❌ Исчерпано максимальное количество попыток. Пользователь удален из чата."
 CHALLENGE_TIMEOUT = "⏰ Время вышло! Пользователь был удален за то, что не решил задание вовремя."
 CHALLENGE_EXPIRED_BUTTON = "⚠️ Это задание больше недействительно."
 
