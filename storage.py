@@ -1,11 +1,11 @@
 import sqlite3
-import json
 import logging
 from datetime import datetime
 import threading
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
+
 
 class ChallengeStorage:
     def __init__(self, db_path="challenges.db"):
@@ -39,37 +39,44 @@ class ChallengeStorage:
             finally:
                 conn.close()
 
-    def add_challenge(self, message_id: int, chat_id: int, user_id: int, answer: int, expires_in_seconds: int = 180):
+    def add_challenge(self, message_id: int, chat_id: int, user_id: int,
+                      answer: int, expires_in_seconds: int = 180):
         """Add a new challenge to storage"""
         created_at = datetime.now()
         expires_at = datetime.now().timestamp() + expires_in_seconds
-        
+
         with self._get_connection() as conn:
             try:
                 conn.execute(
                     """
-                    INSERT INTO challenges 
-                    (message_id, chat_id, user_id, answer, attempts, created_at, expires_at)
+                    INSERT INTO challenges
+                    (message_id, chat_id, user_id, answer, attempts,
+                     created_at, expires_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (message_id, chat_id, user_id, answer, 0, created_at.isoformat(), expires_at)
+                    (message_id, chat_id, user_id, answer, 0,
+                     created_at.isoformat(), expires_at)
                 )
                 conn.commit()
-                logger.debug(f"Added challenge for message {message_id} to database")
+                logger.debug(f"Added challenge for message {message_id} "
+                            f"to database")
             except sqlite3.IntegrityError:
-                logger.warning(f"Challenge with message_id {message_id} already exists")
+                logger.warning(f"Challenge with message_id {message_id} "
+                              f"already exists")
 
     def increment_attempts(self, message_id: int) -> int:
         """Increment attempt count for a challenge and return new count"""
         with self._get_connection() as conn:
             # Use atomic operation with RETURNING clause
             cursor = conn.execute(
-                "UPDATE challenges SET attempts = attempts + 1 WHERE message_id = ? RETURNING attempts",
+                ("UPDATE challenges SET attempts = attempts + 1 "
+                 "WHERE message_id = ? RETURNING attempts"),
                 (message_id,)
             )
             row = cursor.fetchone()
             if not row:
-                logger.warning(f"Attempted to increment attempts for non-existent challenge {message_id}")
+                logger.warning(f"Attempted to increment attempts for "
+                              f"non-existent challenge {message_id}")
                 return 0
             conn.commit()
             return row[0]
@@ -119,7 +126,7 @@ class ChallengeStorage:
         with self._get_connection() as conn:
             cursor = conn.execute(
                 """
-                SELECT * FROM challenges 
+                SELECT * FROM challenges
                 WHERE chat_id = ? AND user_id = ? AND expires_at > ?
                 """,
                 (chat_id, user_id, datetime.now().timestamp())
@@ -135,4 +142,4 @@ class ChallengeStorage:
                     'created_at': datetime.fromisoformat(str(row[5])),
                     'expires_at': row[6]
                 })
-            return results 
+            return results

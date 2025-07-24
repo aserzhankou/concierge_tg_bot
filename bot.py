@@ -4,14 +4,24 @@ import logging
 from logging.handlers import RotatingFileHandler
 import json
 from datetime import datetime
-from telegram import Update, ChatPermissions, ChatMember, ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup, Chat
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ChatMemberHandler
+from telegram import (Update, ChatPermissions, ChatMember, ChatMemberUpdated,
+                      InlineKeyboardButton, InlineKeyboardMarkup, Chat)
+from telegram.ext import (ApplicationBuilder, CommandHandler, MessageHandler,
+                          filters, ContextTypes, ChatMemberHandler)
 from telegram.ext import CallbackQueryHandler
 from telegram.error import TelegramError
 from storage import ChallengeStorage
 import traceback
-import html
-from messages import *  # Import all message constants
+from messages import (
+    ERR_NOT_SUPERGROUP, ERR_CHALLENGE_EXPIRED, ERR_CHALLENGE_NOT_FOR_YOU,
+    ERR_INVALID_CALLBACK, ERR_GENERIC, WELCOME_CHALLENGE, CHALLENGE_CORRECT,
+    CHALLENGE_WRONG, CHALLENGE_WRONG_WITH_ATTEMPTS, CHALLENGE_MAX_ATTEMPTS,
+    CHALLENGE_EXPIRED_BUTTON, DEBUG_SIMULATED_JOIN,
+    STARTUP_MESSAGE, DEBUG_MODE_MESSAGE, PYTHON_VERSION_MESSAGE,
+    WORKING_DIR_MESSAGE, BOT_INIT_MESSAGE, BOT_INIT_COMPLETE,
+    LOG_HANDLERS_SETUP, LOG_ERROR_HANDLER_SETUP, LOG_CLEANUP_JOB_SETUP,
+    LOG_DEBUG_MODE, EMOJI_CHALLENGES
+)
 from aiohttp import web
 
 try:
@@ -30,17 +40,17 @@ class JsonFormatter(logging.Formatter):
             'logger': record.name,
             'message': record.getMessage(),
         }
-        
+
         if hasattr(record, 'chat_id'):
             log_data['chat_id'] = record.chat_id
         if hasattr(record, 'user_id'):
             log_data['user_id'] = record.user_id
         if hasattr(record, 'message_id'):
             log_data['message_id'] = record.message_id
-            
+
         if record.exc_info:
             log_data['exception'] = self.formatException(record.exc_info)
-            
+
         return json.dumps(log_data)
 
 def setup_logging():
@@ -71,7 +81,7 @@ def setup_logging():
     try:
         file_handler = RotatingFileHandler(
             os.path.join(log_dir, 'bot.log'),
-            maxBytes=10*1024*1024,  # 10MB
+            maxBytes=10 * 1024 * 1024,  # 10MB
             backupCount=5
         )
         file_handler.setFormatter(file_formatter)
@@ -95,7 +105,7 @@ def setup_logging():
     try:
         json_handler = RotatingFileHandler(
             os.path.join(log_dir, 'bot_analysis.json'),
-            maxBytes=10*1024*1024,  # 10MB
+            maxBytes=10 * 1024 * 1024,  # 10MB
             backupCount=5
         )
         json_handler.setFormatter(JsonFormatter())
@@ -114,7 +124,8 @@ logger = setup_logging()
 # Log startup information
 logger.info(STARTUP_MESSAGE)
 logger.info(DEBUG_MODE_MESSAGE.format(debug_mode=debug_mode))
-logger.info(PYTHON_VERSION_MESSAGE.format(python_version=os.sys.version))
+logger.info(PYTHON_VERSION_MESSAGE.format(
+        python_version=os.sys.version))
 logger.info(WORKING_DIR_MESSAGE.format(working_dir=os.getcwd()))
 
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
@@ -138,7 +149,7 @@ bot_health = {
 async def healthcheck_handler(request):
     """HTTP healthcheck endpoint"""
     uptime = datetime.now() - bot_health['start_time']
-    
+
     health_data = {
         'status': bot_health['status'],
         'uptime_seconds': int(uptime.total_seconds()),
@@ -148,7 +159,7 @@ async def healthcheck_handler(request):
         'errors_count': bot_health['errors_count'],
         'version': '1.0.0'
     }
-    
+
     # Determine HTTP status based on bot health
     if bot_health['status'] == 'running':
         status = 200
@@ -156,17 +167,17 @@ async def healthcheck_handler(request):
         status = 503  # Service Unavailable
     else:
         status = 500  # Internal Server Error
-    
+
     return web.json_response(health_data, status=status)
 
 async def create_http_server():
     """Create and configure the HTTP server"""
     app = web.Application()
-    
+
     # Add healthcheck endpoint
     app.router.add_get('/health', healthcheck_handler)
     app.router.add_get('/healthcheck', healthcheck_handler)  # Alternative endpoint
-    
+
     # Add a simple root endpoint
     async def root_handler(request):
         return web.json_response({
@@ -174,64 +185,54 @@ async def create_http_server():
             'status': 'ok',
             'endpoints': ['/health', '/healthcheck']
         })
-    
+
     app.router.add_get('/', root_handler)
-    
+
     return app
 
-def generate_answer_options(correct_answer: int) -> list:
-    """Generate 4 options with only one correct answer"""
-    options = [correct_answer]
-    attempts = 0
-    range_offset = 5
-    
-    while len(options) < 4 and attempts < 50:  # Prevent infinite loop
-        wrong_answer = correct_answer + random.randint(-range_offset, range_offset)
-        if wrong_answer != correct_answer and wrong_answer not in options and wrong_answer > 0:
-            options.append(wrong_answer)
-        attempts += 1
-        
-        if attempts % 10 == 0:  # Expand range if struggling
-            range_offset += 5
-            
-    # If we still don't have enough options, fill with simple increments
-    if len(options) < 4:
-        for i in range(1, 20):
-            if len(options) >= 4:
-                break
-            candidate = correct_answer + i
-            if candidate not in options and candidate > 0:
-                options.append(candidate)
-            candidate = correct_answer - i
-            if len(options) < 4 and candidate not in options and candidate > 0:
-                options.append(candidate)
-    
-    random.shuffle(options)
-    return options
+def generate_emoji_challenge():
+    """Generate an emoji challenge with question and 4 options"""
+    # Pick a random challenge from messages
+    challenge = random.choice(EMOJI_CHALLENGES)
 
-async def restrict_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Create options list with correct answer and wrong options
+    options = [challenge["correct"]] + challenge["wrong_options"]
+    random.shuffle(options)
+
+    # Find the correct answer index (0-3)
+    correct_index = options.index(challenge["correct"])
+
+    return {
+        "question": challenge["question"],
+        "options": options,
+        "correct_answer": correct_index  # Index of correct option (0-3)
+    }
+
+async def restrict_new_member(update: Update,
+                              context: ContextTypes.DEFAULT_TYPE):
     """Handle new chat members and member status changes"""
     logger.debug(f"Received update type: {update.message and 'message' or 'chat_member'}")
-    
+
     if update.message and update.message.new_chat_members:
         # Handle new_chat_members update
         for new_member in update.message.new_chat_members:
             if new_member.is_bot:
                 continue
-            
+
             user = new_member
             chat_id = update.effective_chat.id
-            
-            logger.info(f"Processing new member {user.full_name} in chat {chat_id} (from message update)")
+
+            logger.info(f"Processing new member {user.full_name} in "
+                       f"chat {chat_id} (from message update)")
             await process_new_member(update, context, chat_id, user)
-            
+
     elif update.chat_member:
         # Handle chat_member update
         chat_member_update = update.chat_member
         old_status = chat_member_update.old_chat_member.status
         new_status = chat_member_update.new_chat_member.status
         user = chat_member_update.new_chat_member.user
-        chat_id = update.effective_chat.id
+    # chat_id = update.effective_chat.id  # Not used in debug mode
 
         logger.debug(
             f"Chat member update received:\n"
@@ -242,7 +243,8 @@ async def restrict_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
         if old_status in ["left", "kicked"] and new_status == "member" and not user.is_bot:
-            logger.info(f"Processing new member {user.full_name} in chat {chat_id} (from chat_member update)")
+            logger.info(f"Processing new member {user.full_name} in "
+                        f"chat {chat_id} (from chat_member update)")
             await process_new_member(update, context, chat_id, user)
         elif new_status in ["left", "kicked"] and not user.is_bot:
             # User left or was kicked, clean up their challenges
@@ -283,11 +285,12 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
         # Update health stats
         bot_health['last_update'] = datetime.now()
         bot_health['challenges_processed'] += 1
-        
+
         # Check if this is a supergroup
         chat = await context.bot.get_chat(chat_id)
         if chat.type != Chat.SUPERGROUP:
-            logger.warning(f"Chat {chat_id} is not a supergroup, can't restrict members")
+            logger.warning(f"Chat {chat_id} is not a supergroup, "
+                          f"can't restrict members")
             await context.bot.send_message(
                 chat_id,
                 ERR_NOT_SUPERGROUP
@@ -303,11 +306,17 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
                     chat_id=challenge['chat_id'],
                     message_id=challenge['message_id']
                 )
+                # Schedule deletion of expired message after 10 seconds
+                context.job_queue.run_once(
+                    delete_welcome_message_job,
+                    10,
+                    data={'message_id': challenge['message_id'], 'chat_id': challenge['chat_id']}
+                )
             except TelegramError:
                 pass
             storage.remove_challenge(challenge['message_id'])
             logger.info(
-                "Removed old challenge",
+                "Removed old challenge and scheduled deletion",
                 extra={
                     'chat_id': chat_id,
                     'user_id': user.id,
@@ -328,32 +337,30 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
             }
         )
 
-        # Generate math challenge
-        a, b = random.randint(1, 20), random.randint(1, 20)
-        correct_answer = a + b
-        options = generate_answer_options(correct_answer)
-        
+        # Generate emoji challenge
+        challenge = generate_emoji_challenge()
+
         # Create inline keyboard
         keyboard = []
         row = []
-        for option in options:
-            callback_data = f"answer_{chat_id}_{user.id}_{option}"
-            row.append(InlineKeyboardButton(str(option), callback_data=callback_data))
+        for i, option in enumerate(challenge["options"]):
+            callback_data = f"answer_{chat_id}_{user.id}_{i}"  # Use index instead of value
+            row.append(InlineKeyboardButton(option, callback_data=callback_data))
             if len(row) == 2:
                 keyboard.append(row)
                 row = []
         if row:
             keyboard.append(row)
-            
+
         reply_markup = InlineKeyboardMarkup(keyboard)
         challenge_text = WELCOME_CHALLENGE.format(
             user_mention=user.mention_html(),
-            question=f"{a} + {b} = ?"
+            question=challenge["question"]
         )
-        
+
         sent_message = await context.bot.send_message(
-            chat_id, 
-            challenge_text, 
+            chat_id,
+            challenge_text,
             parse_mode="HTML",
             reply_markup=reply_markup,
             disable_notification=True
@@ -366,18 +373,18 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
             message_id=message_id,
             chat_id=chat_id,
             user_id=user.id,
-            answer=correct_answer
+            answer=challenge["correct_answer"]  # Store the correct index (0-3)
         )
 
         # Set up a 3-minute timer
         context.job_queue.run_once(
-            kick_user_job, 
+            kick_user_job,
             180,
             data={'message_id': message_id}
         )
-        
+
         logger.info(f"Set up challenge for user {user.id} with message {message_id}")
-    
+
     except TelegramError as e:
         logger.error(
             f"Error processing new member: {str(e)}",
@@ -403,7 +410,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
             'event_type': 'answer_attempt'
         }
     )
-    
+
     try:
         # Get challenge by message_id
         challenge = storage.get_challenge(message_id)
@@ -456,7 +463,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                 'event_type': 'processing_answer'
             }
         )
-            
+
         if answer == challenge['answer']:
             logger.info(
                 f"Correct answer received",
@@ -474,7 +481,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                 can_add_web_page_previews=True
             )
             await context.bot.restrict_chat_member(chat_id, user_id, permissions=permissions)
-            
+
             # Update challenge message to welcome message
             await context.bot.edit_message_text(
                 CHALLENGE_CORRECT.format(
@@ -485,14 +492,14 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                 message_id=message_id,
                 parse_mode="HTML"
             )
-            
+
             # Schedule deletion of welcome message after 3 minutes
             context.job_queue.run_once(
                 delete_welcome_message_job,
                 180,
                 data={'message_id': message_id, 'chat_id': chat_id}
             )
-            
+
             # Cleanup
             storage.remove_challenge(message_id)
             # No personal popup - only welcome message in chat
@@ -508,11 +515,11 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                     'event_type': 'wrong_answer'
                 }
             )
-            
+
             # Increment attempt count
             attempts = storage.increment_attempts(message_id)
             remaining_attempts = MAX_ATTEMPTS - attempts
-            
+
             logger.info(
                 f"User attempt count updated",
                 extra={
@@ -524,7 +531,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                     'event_type': 'attempt_incremented'
                 }
             )
-            
+
             if attempts >= MAX_ATTEMPTS:
                 # Max attempts reached - kick user
                 await kick_user_max_attempts(context, chat_id, user_id, message_id)
@@ -533,12 +540,12 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                 # Still have attempts left
                 if remaining_attempts > 0:
                     await query.answer(
-                        CHALLENGE_WRONG_WITH_ATTEMPTS.format(remaining_attempts=remaining_attempts), 
+                        CHALLENGE_WRONG_WITH_ATTEMPTS.format(remaining_attempts=remaining_attempts),
                         show_alert=True
                     )
                 else:
                     await query.answer(CHALLENGE_WRONG, show_alert=True)
-            
+
     except (ValueError, KeyError) as e:
         logger.error(
             f"Error handling answer: {str(e)}",
@@ -565,7 +572,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
 async def kick_user_job(context: ContextTypes.DEFAULT_TYPE):
     """Handle timeout for challenge"""
     message_id = context.job.data['message_id']
-    
+
     try:
         challenge = storage.get_challenge(message_id)
         if not challenge:
@@ -597,7 +604,7 @@ async def kick_user_job(context: ContextTypes.DEFAULT_TYPE):
             )
             # Don't proceed with cleanup if kick failed
             return
-        
+
         # Then delete the challenge message
         try:
             await context.bot.delete_message(
@@ -613,9 +620,9 @@ async def kick_user_job(context: ContextTypes.DEFAULT_TYPE):
                     'event_type': 'delete_failed'
                 }
             )
-        
+
         storage.remove_challenge(message_id)
-        
+
     except Exception as e:
         logger.error(
             f"Unexpected error in kick job: {str(e)}",
@@ -627,13 +634,14 @@ async def kick_user_job(context: ContextTypes.DEFAULT_TYPE):
             exc_info=True
         )
 
-async def kick_user_max_attempts(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int, message_id: int):
+async def kick_user_max_attempts(context: ContextTypes.DEFAULT_TYPE,
+                                 chat_id: int, user_id: int, message_id: int):
     """Kick user when max attempts reached and cleanup challenge"""
     try:
         # First kick the user
         await context.bot.ban_chat_member(chat_id, user_id)
         await context.bot.unban_chat_member(chat_id, user_id)
-        
+
         # Update message to show max attempts reached
         try:
             await context.bot.edit_message_text(
@@ -641,7 +649,7 @@ async def kick_user_max_attempts(context: ContextTypes.DEFAULT_TYPE, chat_id: in
                 chat_id=chat_id,
                 message_id=message_id
             )
-            
+
             # Schedule deletion of the failure message after 10 seconds
             context.job_queue.run_once(
                 delete_welcome_message_job,
@@ -657,10 +665,10 @@ async def kick_user_max_attempts(context: ContextTypes.DEFAULT_TYPE, chat_id: in
                     'event_type': 'update_failed'
                 }
             )
-        
+
         # Remove challenge from storage
         storage.remove_challenge(message_id)
-        
+
         logger.info(
             "User kicked due to max attempts",
             extra={
@@ -687,7 +695,7 @@ async def delete_welcome_message_job(context: ContextTypes.DEFAULT_TYPE):
     """Delete welcome message after 3 minutes"""
     message_id = context.job.data['message_id']
     chat_id = context.job.data['chat_id']
-    
+
     try:
         await context.bot.delete_message(
             chat_id=chat_id,
@@ -720,12 +728,11 @@ async def debug_simulate_join(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Debug command to simulate user join"""
     if not debug_mode:
         return
-        
-    chat_id = update.effective_chat.id
+
     user_id = update.effective_user.id
-    
+
     logger.info(DEBUG_SIMULATED_JOIN.format(user_id=user_id))
-    
+
     # Create mock member update
     mock_update = Update(
         update.update_id,
@@ -737,7 +744,7 @@ async def debug_simulate_join(update: Update, context: ContextTypes.DEFAULT_TYPE
             new_chat_member=ChatMember(user=update.effective_user, status="member"),
         )
     )
-    
+
     await restrict_new_member(mock_update, context)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -745,7 +752,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Update error count
     bot_health['errors_count'] += 1
     bot_health['last_update'] = datetime.now()
-    
+
     # Log the error before we do anything else, so we can see it even if something breaks.
     logger.error("Exception while handling an update:", exc_info=context.error)
 
@@ -755,12 +762,12 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     # Build the message with some markup and additional information
     update_str = update.to_dict() if isinstance(update, Update) else str(update)
-    message = ERROR_REPORT.format(
-        update=html.escape(json.dumps(update_str, indent=2, ensure_ascii=False)),
-        chat_data=html.escape(str(context.chat_data)),
-        user_data=html.escape(str(context.user_data)),
-        traceback=html.escape(tb_string)
-    )
+    # message = ERROR_REPORT.format(  # For future use
+    #     update=html.escape(json.dumps(update_str, indent=2, ensure_ascii=False)),
+    #     chat_data=html.escape(str(context.chat_data)),
+    #     user_data=html.escape(str(context.user_data)),
+    #     traceback=html.escape(tb_string)
+    # )
 
     logger.error(
         "Exception occurred",
@@ -777,74 +784,89 @@ async def start_http_server():
     app = await create_http_server()
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     site = web.TCPSite(runner, '0.0.0.0', HTTP_PORT)
     await site.start()
-    
+
     logger.info(f"HTTP server started on port {HTTP_PORT}")
     logger.info(f"Healthcheck available at: http://localhost:{HTTP_PORT}/health")
-    
+
     return runner
+
+def setup_bot_handlers(app):
+    """Setup all bot handlers"""
+    logger.debug(LOG_HANDLERS_SETUP)
+    app.add_handler(ChatMemberHandler(restrict_new_member,
+                                      ChatMemberHandler.CHAT_MEMBER))
+    app.add_handler(MessageHandler(
+        filters.ChatType.GROUPS & filters.StatusUpdate.NEW_CHAT_MEMBERS,
+        restrict_new_member))
+    app.add_handler(CallbackQueryHandler(handle_answer_callback,
+                                         pattern=r"^answer_"))
+
+    # Add error handler
+    logger.debug(LOG_ERROR_HANDLER_SETUP)
+    app.add_error_handler(error_handler)
+
+    # Add periodic cleanup job
+    logger.debug(LOG_CLEANUP_JOB_SETUP)
+    app.job_queue.run_repeating(cleanup_job, interval=60)
+
+    if debug_mode:
+        logger.info(LOG_DEBUG_MODE)
+        app.add_handler(CommandHandler('debug_join', debug_simulate_join))
+
+
+def setup_lifecycle_hooks(app):
+    """Setup bot lifecycle hooks"""
+    # Global variable to store HTTP runner
+    http_runner = None
+
+    async def post_init(application):
+        """Initialize HTTP server after bot initialization"""
+        nonlocal http_runner
+        try:
+            http_runner = await start_http_server()
+            bot_health['status'] = 'running'
+            bot_health['last_update'] = datetime.now()
+            logger.info("Bot and HTTP server initialization complete")
+        except Exception as e:
+            logger.error(f"Failed to start HTTP server: {e}")
+            bot_health['status'] = 'error'
+            raise
+
+    async def post_stop(application):
+        """Cleanup HTTP server when bot stops"""
+        nonlocal http_runner
+        if http_runner:
+            try:
+                logger.info("Shutting down HTTP server...")
+                bot_health['status'] = 'stopping'
+                await http_runner.cleanup()
+                logger.info("HTTP server shutdown complete")
+            except Exception as e:
+                logger.error(f"Error during HTTP server shutdown: {e}")
+
+    # Set up lifecycle hooks
+    app.post_init = post_init
+    app.post_stop = post_stop
+
 
 def main():
     try:
         logger.info(BOT_INIT_MESSAGE)
-        
+
         # Create the bot application
         app = ApplicationBuilder().token(BOT_TOKEN).build()
-        
-        # Add handlers
-        logger.debug(LOG_HANDLERS_SETUP)
-        app.add_handler(ChatMemberHandler(restrict_new_member, ChatMemberHandler.CHAT_MEMBER))
-        app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.StatusUpdate.NEW_CHAT_MEMBERS, restrict_new_member))
-        app.add_handler(CallbackQueryHandler(handle_answer_callback, pattern=r"^answer_"))
-        
-        # Add error handler
-        logger.debug(LOG_ERROR_HANDLER_SETUP)
-        app.add_error_handler(error_handler)
-        
-        # Add periodic cleanup job
-        logger.debug(LOG_CLEANUP_JOB_SETUP)
-        app.job_queue.run_repeating(cleanup_job, interval=60)  # Run every minute
-        
-        if debug_mode:
-            logger.info(LOG_DEBUG_MODE)
-            app.add_handler(CommandHandler('debug_join', debug_simulate_join))
-        
-        # Global variable to store HTTP runner
-        http_runner = None
-        
-        async def post_init(application):
-            """Initialize HTTP server after bot initialization"""
-            nonlocal http_runner
-            try:
-                http_runner = await start_http_server()
-                bot_health['status'] = 'running'
-                bot_health['last_update'] = datetime.now()
-                logger.info("Bot and HTTP server initialization complete")
-            except Exception as e:
-                logger.error(f"Failed to start HTTP server: {e}")
-                bot_health['status'] = 'error'
-                raise
-        
-        async def post_stop(application):
-            """Cleanup HTTP server when bot stops"""
-            nonlocal http_runner
-            if http_runner:
-                try:
-                    logger.info("Shutting down HTTP server...")
-                    bot_health['status'] = 'stopping'
-                    await http_runner.cleanup()
-                    logger.info("HTTP server shutdown complete")
-                except Exception as e:
-                    logger.error(f"Error during HTTP server shutdown: {e}")
-        
-        # Set up lifecycle hooks
-        app.post_init = post_init
-        app.post_stop = post_stop
-        
+
+        # Setup handlers
+        setup_bot_handlers(app)
+
+        # Setup lifecycle hooks
+        setup_lifecycle_hooks(app)
+
         logger.info(BOT_INIT_COMPLETE)
-        
+
         # Run the bot (this handles the event loop properly)
         app.run_polling(
             allowed_updates=[
@@ -855,7 +877,7 @@ def main():
             ],
             drop_pending_updates=True
         )
-        
+
     except Exception as e:
         bot_health['status'] = 'error'
         bot_health['errors_count'] += 1
@@ -870,5 +892,6 @@ def main():
         )
         raise
 
+
 if __name__ == '__main__':
-    main() 
+    main()

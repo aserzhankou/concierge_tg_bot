@@ -5,4 +5,4 @@ import logging
 DEBUG_MODE = False
 
 # Set logging level to INFO
-LOG_LEVEL = logging.INFO 
+LOG_LEVEL = logging.INFO
