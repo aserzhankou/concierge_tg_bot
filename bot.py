@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 import json
 from datetime import datetime
 import asyncio
+import time
 from telegram import (Update, ChatPermissions, ChatMember, ChatMemberUpdated,
                       InlineKeyboardButton, InlineKeyboardMarkup, Chat)
 from telegram.ext import (ApplicationBuilder, CommandHandler, MessageHandler,
@@ -978,6 +979,13 @@ def main():
     try:
         logger.info(messages.BOT_INIT_MESSAGE)
         
+        # Add startup delay for cloud deployments to avoid conflicts
+        deployment_platform = os.environ.get('DEPLOYMENT_PLATFORM', '').lower()
+        if deployment_platform in ['render', 'heroku', 'railway']:
+            startup_delay = int(os.environ.get('STARTUP_DELAY', '3'))
+            logger.info(f"⏳ Cloud deployment detected ({deployment_platform}), waiting {startup_delay}s before start...")
+            time.sleep(startup_delay)
+        
         # DeepSeek will be initialized after bot starts
         
         # Create the bot application
@@ -992,16 +1000,31 @@ def main():
         # Log initial startup status
         logger.info(messages.BOT_INIT_COMPLETE)
 
-        # Run the bot (this handles the event loop properly)
-        app.run_polling(
-            allowed_updates=[
-                Update.MESSAGE,
-                Update.CHAT_MEMBER,
-                Update.MY_CHAT_MEMBER,
-                Update.CALLBACK_QUERY
-            ],
-            drop_pending_updates=True
-        )
+        # Run the bot with conflict handling for cloud deployments
+        max_retries = 3
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                app.run_polling(
+                    allowed_updates=[
+                        Update.MESSAGE,
+                        Update.CHAT_MEMBER,
+                        Update.MY_CHAT_MEMBER,
+                        Update.CALLBACK_QUERY
+                    ],
+                    drop_pending_updates=True,
+                    close_loop=False  # Don't close the loop on exit for retries
+                )
+                break  # Success, exit retry loop
+            except TelegramError as e:
+                if "Conflict" in str(e) and attempt < max_retries - 1:
+                    logger.warning(f"Telegram conflict detected (attempt {attempt + 1}/{max_retries}): {e}")
+                    logger.info(f"Waiting {retry_delay} seconds before retry...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    raise  # Re-raise if not a conflict or max retries reached
 
     except Exception as e:
         bot_health['status'] = 'error'
