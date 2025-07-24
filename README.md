@@ -7,6 +7,7 @@ A Telegram bot that protects channels from spam by requiring new members to solv
 - **Emoji Challenges**: New members must select the correct emoji from 13 different questions
 - **AI Spam Detection**: Uses DeepSeek AI to analyze first 5 messages from new users
 - **Automatic Moderation**: Kicks and bans users who fail challenges or send spam
+- **Chat Restrictions**: Limit bot usage to specific authorized chats only
 - **Russian Localization**: All messages and challenges in Russian
 - **Comprehensive Logging**: Structured JSON logs with rotation
 - **Health Check**: Built-in HTTP server for monitoring
@@ -55,6 +56,7 @@ All bot settings are centralized in `config.py`:
 
 - **Debug Settings**: `DEBUG_MODE`, `LOG_LEVEL`
 - **Bot Settings**: `BOT_TOKEN`, `HTTP_PORT`, `MAX_ATTEMPTS`
+- **Chat Restrictions**: `ALLOWED_CHAT_IDS` - limit bot to specific chats
 - **DeepSeek API**: `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`
 - **Spam Detection**: `SPAM_TRACKING_MESSAGES`, `SPAM_TRACKING_DURATION`, custom prompt
 
@@ -146,6 +148,29 @@ http://localhost:8080/health
 ```
 
 Returns bot status and last activity information.
+
+## Chat Restrictions Quick Start
+
+To limit your bot to specific chats only:
+
+1. **Find your chat ID:**
+   ```bash
+   python get_chat_id.py
+   ```
+
+2. **Configure allowed chats in `config.py`:**
+   ```python
+   # Allow only your group
+   ALLOWED_CHAT_IDS = [-1001234567890]
+   
+   # Allow multiple groups  
+   ALLOWED_CHAT_IDS = [-1001234567890, -1009876543210]
+   
+   # Allow all chats (default)
+   ALLOWED_CHAT_IDS = []
+   ```
+
+3. **Restart your bot**
 
 ## Development
 
