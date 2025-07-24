@@ -15,7 +15,7 @@ debug_mode = DEBUG_MODE
 # BOT CONFIGURATION
 # =====================================
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
-HTTP_PORT = int(os.getenv('HTTP_PORT', '8080'))  # HTTP server port
+HTTP_PORT = int(os.getenv('HTTP_PORT', '10000'))  # HTTP server port
 
 # Challenge settings
 MAX_ATTEMPTS = 2  # Maximum number of wrong attempts before kicking user
