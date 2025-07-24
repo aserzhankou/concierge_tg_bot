@@ -27,6 +27,18 @@ class ChallengeStorage:
                     expires_at TIMESTAMP NOT NULL
                 )
             """)
+
+            # Table for tracking recently joined users for spam detection
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS tracked_users (
+                    chat_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    message_count INTEGER NOT NULL DEFAULT 0,
+                    joined_at TIMESTAMP NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    PRIMARY KEY (chat_id, user_id)
+                )
+            """)
             conn.commit()
 
     @contextmanager
@@ -143,3 +155,82 @@ class ChallengeStorage:
                     'expires_at': row[6]
                 })
             return results
+
+    def add_tracked_user(self, chat_id: int, user_id: int, tracking_duration: int = 86400):
+        """Add a user to spam tracking after they complete challenge"""
+        joined_at = datetime.now()
+        expires_at = joined_at.timestamp() + tracking_duration
+
+        with self._get_connection() as conn:
+            try:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO tracked_users
+                    (chat_id, user_id, message_count, joined_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (chat_id, user_id, 0, joined_at.isoformat(), expires_at)
+                )
+                conn.commit()
+                logger.debug(f"Added user {user_id} to spam tracking in chat {chat_id}")
+            except Exception as e:
+                logger.error(f"Error adding tracked user: {e}")
+
+    def increment_user_messages(self, chat_id: int, user_id: int) -> int:
+        """Increment message count for tracked user and return new count"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                ("UPDATE tracked_users SET message_count = message_count + 1 "
+                 "WHERE chat_id = ? AND user_id = ? AND expires_at > ? "
+                 "RETURNING message_count"),
+                (chat_id, user_id, datetime.now().timestamp())
+            )
+            row = cursor.fetchone()
+            if not row:
+                return -1  # User not tracked or expired
+            conn.commit()
+            return row[0]
+
+    def get_tracked_user(self, chat_id: int, user_id: int):
+        """Get tracked user info if they're still being monitored"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT * FROM tracked_users
+                WHERE chat_id = ? AND user_id = ? AND expires_at > ?
+                """,
+                (chat_id, user_id, datetime.now().timestamp())
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'chat_id': row[0],
+                    'user_id': row[1],
+                    'message_count': row[2],
+                    'joined_at': datetime.fromisoformat(str(row[3])),
+                    'expires_at': row[4]
+                }
+            return None
+
+    def remove_tracked_user(self, chat_id: int, user_id: int):
+        """Remove user from spam tracking"""
+        with self._get_connection() as conn:
+            conn.execute(
+                "DELETE FROM tracked_users WHERE chat_id = ? AND user_id = ?",
+                (chat_id, user_id)
+            )
+            conn.commit()
+            logger.debug(f"Removed user {user_id} from spam tracking in chat {chat_id}")
+
+    def cleanup_expired_tracking(self):
+        """Remove expired tracked users"""
+        current_time = datetime.now().timestamp()
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "DELETE FROM tracked_users WHERE expires_at < ?",
+                (current_time,)
+            )
+            deleted_count = cursor.rowcount
+            conn.commit()
+            if deleted_count > 0:
+                logger.debug(f"Cleaned up {deleted_count} expired tracked users")

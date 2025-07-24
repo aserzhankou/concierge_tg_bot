@@ -1,76 +1,136 @@
-# Telegram Group Protection Bot
+# Telegram Anti-Spam Bot
 
-A Telegram bot that protects groups from spam by challenging new users with simple emoji questions.
+A Telegram bot that protects channels from spam by requiring new members to solve emoji challenges and using AI-powered content analysis.
 
 ## Features
 
-- Auto-restricts new members until they solve an emoji challenge
-- 3-minute timeout with 2 attempts allowed
-- Automatic cleanup of expired messages
-- Built-in health monitoring endpoint
+- **Emoji Challenges**: New members must select the correct emoji from 13 different questions
+- **AI Spam Detection**: Uses DeepSeek AI to analyze first 5 messages from new users
+- **Automatic Moderation**: Kicks and bans users who fail challenges or send spam
+- **Russian Localization**: All messages and challenges in Russian
+- **Comprehensive Logging**: Structured JSON logs with rotation
+- **Health Check**: Built-in HTTP server for monitoring
+- **Clean Architecture**: Organized codebase with separate config and message files
 
-## Quick Start
+## Project Structure
 
-### Prerequisites
-- Python 3.9+
-- Telegram Bot Token from [@BotFather](https://t.me/BotFather)
-- Admin permissions in your supergroup
+```
+telegram_bot/
+├── bot.py              # Main bot logic and handlers
+├── config.py           # Centralized configuration
+├── messages.py         # UI messages and emoji challenges
+├── storage.py          # SQLite database operations
+├── requirements.txt    # Python dependencies
+├── setup.cfg          # Flake8 configuration
+└── logs/              # Log files directory
+```
 
-### Installation
+## Setup
 
-1. **Setup**:
+1. **Install Dependencies**:
    ```bash
-   git clone <repository-url>
-   cd telegram_bot
-   python -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
-2. **Configure**:
+2. **Environment Variables**:
    ```bash
-   export TELEGRAM_BOT_TOKEN="your_bot_token_here"
+   export TELEGRAM_BOT_TOKEN="your_bot_token"
+   export DEEPSEEK_API_KEY="your_deepseek_api_key"  # Optional, for AI spam detection
    ```
 
-3. **Run**:
-   ```bash
-   python bot.py
-   ```
-
-## How It Works
-
-1. New member joins → Bot restricts them (read-only)
-2. Bot sends emoji challenge (e.g., "Which one is a fruit?" with 🍎🚗🏠📱 options)
-3. User clicks correct answer → Gets full permissions
-4. Wrong answer or timeout → User is removed
+3. **Bot Permissions**: Ensure your bot has admin rights in the channel with permissions to:
+   - Delete messages
+   - Restrict members
+   - Ban users
 
 ## Configuration
 
-- `TELEGRAM_BOT_TOKEN` - Bot token (required)
-- `HTTP_PORT` - Health endpoint port (default: 8080)
+### Main Configuration (`config.py`)
 
-### Debug Mode
-Create `test_config.py`:
+All bot settings are centralized in `config.py`:
+
+- **Debug Settings**: `DEBUG_MODE`, `LOG_LEVEL`
+- **Bot Settings**: `BOT_TOKEN`, `HTTP_PORT`, `MAX_ATTEMPTS`
+- **DeepSeek API**: `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`
+- **Spam Detection**: `SPAM_TRACKING_MESSAGES`, `SPAM_TRACKING_DURATION`, custom prompt
+
+### Production vs Development
+
+For production, edit `config.py`:
 ```python
-DEBUG_MODE = True
-LOG_LEVEL = logging.DEBUG
+DEBUG_MODE = False      # Disable debug logging
+LOG_LEVEL = logging.INFO  # Reduce log verbosity
 ```
 
-## Bot Permissions Required
+For development:
+```python
+DEBUG_MODE = True         # Enable debug logging
+LOG_LEVEL = logging.DEBUG # Full log details
+```
 
-- Restrict members
-- Ban users  
-- Delete messages
-- Send messages
+## How It Works
 
-## Important Notes
+1. **New Member Joins**: Bot restricts the user and sends a random emoji challenge
+2. **Challenge Response**: User has 60 seconds to select the correct emoji from 4 options
+3. **Success**: User gets full access and is monitored for spam (first 5 messages)
+4. **AI Analysis**: DeepSeek AI evaluates messages using a custom Russian prompt for HOA communities
+5. **Auto-Moderation**: Spam detection triggers automatic ban and cleanup
 
-- **Only works in supergroups** (not regular groups)
-- Bot needs admin permissions
-- Messages auto-delete after completion
+## Features in Detail
 
-## Troubleshooting
+### Emoji Challenges (13 variations)
+- 🍎 Fruit, 🐱 Animal, 🚗 Transport, 🍕 Food
+- 🏠 Building, 🌳 Plant, ⚽ Sports, 📚 Reading  
+- ☀️ Weather, 🎸 Music, 👕 Clothing, ☕ Drinks, 😊 Emotions
 
-- **Bot not working**: Check admin permissions and supergroup status
-- **Health endpoint**: Available at `http://localhost:8080/health`
-- **Logs**: Check `logs/` directory for errors 
+### AI Spam Detection
+- **Context-Aware**: Tuned for HOA/community discussions
+- **Intelligent**: Distinguishes between neighbor help and commercial spam
+- **Russian Language**: Native Russian prompt and analysis
+- **Conservative**: Allows community discussion while blocking obvious spam
+
+## API Requirements
+
+### Telegram Bot API
+- Create bot via [@BotFather](https://t.me/BotFather)
+- Bot must be admin in the target supergroup
+
+### DeepSeek API (Optional)
+- Sign up at [platform.deepseek.com](https://platform.deepseek.com)
+- Get API key for AI-powered spam detection
+- Without API key: bot runs in basic protection mode (emoji challenges only)
+
+## Running
+
+```bash
+python bot.py
+```
+
+### Startup Messages
+```
+✅ DeepSeek API connection successful - spam detection enabled
+🛡️ Full protection: Emoji challenges + AI spam detection
+Bot is ready to process updates
+```
+
+Or without DeepSeek:
+```
+📝 Basic protection mode (no AI spam detection)  
+🛡️ Basic protection: Emoji challenges only
+```
+
+## Logging
+
+- **Location**: `logs/` directory
+- **Format**: Structured JSON logs
+- **Rotation**: Automatic log rotation
+- **Levels**: Configurable via `config.py`
+
+## Health Monitoring
+
+HTTP health endpoint available at:
+```
+http://localhost:8080/health
+```
+
+Returns bot status and last activity information. 

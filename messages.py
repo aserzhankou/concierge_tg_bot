@@ -77,6 +77,31 @@ EMOJI_CHALLENGES = [
         "question": "Что из этого можно читать?",
         "correct": "📚",
         "wrong_options": ["🍕", "🐱", "🌟"]
+    },
+    {
+        "question": "Что из этого погодное явление?",
+        "correct": "☀️",
+        "wrong_options": ["🍎", "🚗", "📱"]
+    },
+    {
+        "question": "Что из этого музыкальный инструмент?",
+        "correct": "🎸",
+        "wrong_options": ["🍕", "🏠", "⚽"]
+    },
+    {
+        "question": "Что из этого одежда?",
+        "correct": "👕",
+        "wrong_options": ["🌳", "📚", "🐱"]
+    },
+    {
+        "question": "Что из этого напиток?",
+        "correct": "☕",
+        "wrong_options": ["🚗", "🏠", "⚽"]
+    },
+    {
+        "question": "Что из этого показывает эмоцию?",
+        "correct": "😊",
+        "wrong_options": ["🍎", "📱", "🌳"]
     }
 ]
 
@@ -86,6 +111,7 @@ DEBUG_MODE_MESSAGE = "Debug mode: {debug_mode}"
 PYTHON_VERSION_MESSAGE = "Python version: {python_version}"
 WORKING_DIR_MESSAGE = "Working directory: {working_dir}"
 BOT_INIT_MESSAGE = "Initializing bot..."
+DEEPSEEK_CHECK_MESSAGE = "Checking DeepSeek connection..."
 BOT_INIT_COMPLETE = "Bot initialization complete, starting polling..."
 
 # Log messages
@@ -93,3 +119,7 @@ LOG_HANDLERS_SETUP = "Setting up handlers..."
 LOG_ERROR_HANDLER_SETUP = "Setting up error handler..."
 LOG_CLEANUP_JOB_SETUP = "Setting up cleanup job..."
 LOG_DEBUG_MODE = "Running in debug mode"
+
+# Spam detection messages
+SPAM_DETECTED_KICK = "🚫 Пользователь удален за отправку рекламы/спама"
+SPAM_DETECTION_ERROR = "⚠️ Ошибка при проверке сообщения на спам"
