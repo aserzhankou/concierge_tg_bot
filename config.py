@@ -22,6 +22,14 @@ MAX_ATTEMPTS = 2  # Maximum number of wrong attempts before kicking user
 CHALLENGE_TIMEOUT = 60  # Challenge timeout in seconds (1 minute)
 
 # =====================================
+# CHAT RESTRICTIONS
+# =====================================
+# List of allowed chat IDs (as strings or integers)
+# Set to empty list [] to allow all chats
+# Example: ALLOWED_CHAT_IDS = [-1001234567890, -1009876543210]
+ALLOWED_CHAT_IDS = []
+
+# =====================================
 # DEEPSEEK API CONFIGURATION
 # =====================================
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')

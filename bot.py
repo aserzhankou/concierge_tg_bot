@@ -24,7 +24,8 @@ from gpt.deepseek import (
 # Import configuration
 from config import (
     debug_mode, LOG_LEVEL, BOT_TOKEN, HTTP_PORT, MAX_ATTEMPTS,
-    SPAM_TRACKING_MESSAGES, SPAM_TRACKING_DURATION
+    SPAM_TRACKING_MESSAGES, SPAM_TRACKING_DURATION,
+    ALLOWED_CHAT_IDS
 )
 
 class JsonFormatter(logging.Formatter):
@@ -140,6 +141,41 @@ bot_health = {
     'errors_count': 0
 }
 
+def is_chat_authorized(update: Update) -> bool:
+    """Check if a chat is authorized to use the bot"""
+    # If no restrictions are set, allow all chats
+    if not ALLOWED_CHAT_IDS:
+        return True
+    
+    # Get chat ID
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    if chat_id is None:
+        return True  # Allow if chat ID is unclear
+    
+    # Always allow private chats (positive chat IDs)
+    if chat_id > 0:
+        return True
+    
+    # Check if group/channel chat_id is in allowed list
+    for allowed_id in ALLOWED_CHAT_IDS:
+        try:
+            if int(allowed_id) == int(chat_id):
+                return True
+        except (ValueError, TypeError):
+            continue
+    
+    # Log unauthorized access attempt (but do nothing else)
+    logger.debug(
+        f"🚫 Ignoring update from unauthorized chat {chat_id}",
+        extra={
+            'chat_id': chat_id,
+            'chat_title': update.effective_chat.title if update.effective_chat else None,
+            'event_type': 'unauthorized_ignored'
+        }
+    )
+    
+    return False
+
 async def healthcheck_handler(request):
     """HTTP healthcheck endpoint"""
     uptime = datetime.now() - bot_health['start_time']
@@ -191,6 +227,10 @@ async def create_http_server():
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular messages from users to check for spam"""
     if not update.message or not update.message.text:
+        return
+
+    # Check if chat is authorized - ignore if not
+    if not is_chat_authorized(update):
         return
 
     user_id = update.effective_user.id
@@ -303,6 +343,10 @@ async def restrict_new_member(update: Update,
                               context: ContextTypes.DEFAULT_TYPE):
     """Handle new chat members and member status changes"""
     logger.debug(f"Received update type: {update.message and 'message' or 'chat_member'}")
+
+    # Check if chat is authorized - ignore if not
+    if not is_chat_authorized(update):
+        return
 
     if update.message and update.message.new_chat_members:
         # Handle new_chat_members update
@@ -489,6 +533,10 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle button clicks from challenge answers"""
+    # Check if chat is authorized - ignore if not
+    if not is_chat_authorized(update):
+        return
+
     query = update.callback_query
     message_id = query.message.message_id
     logger.debug(
@@ -827,6 +875,10 @@ async def cleanup_job(context: ContextTypes.DEFAULT_TYPE):
 async def debug_simulate_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Debug command to simulate user join"""
     if not debug_mode:
+        return
+
+    # Check if chat is authorized - ignore if not
+    if not is_chat_authorized(update):
         return
 
     user_id = update.effective_user.id
