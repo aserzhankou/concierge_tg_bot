@@ -80,40 +80,6 @@ LOG_LEVEL = logging.DEBUG # Full log details
 4. **AI Analysis**: DeepSeek AI evaluates messages using a custom Russian prompt for HOA communities
 5. **Auto-Moderation**: Spam detection triggers automatic ban and cleanup
 
-## Architecture Components
-
-### Core Bot (`bot.py`)
-- Main application logic
-- Telegram handlers and callbacks
-- User management and challenge system
-- Integration with all modules
-
-### Configuration (`config.py`)
-- Centralized settings management
-- Environment variable handling
-- Debug/production configuration
-
-### Messages (`messages.py`)
-- All user-facing text constants
-- Emoji challenge definitions
-- Localized Russian content
-
-### Database (`db/`)
-- SQLite database storage
-- Challenge tracking
-- User spam monitoring data
-
-### AI Integration (`gpt/`)
-- **`deepseek.py`**: DeepSeek API wrapper
-- Spam detection logic
-- AI response processing
-- Connection testing and validation
-
-### Storage (`storage.py`)
-- Database abstraction layer
-- Thread-safe operations
-- Data persistence management
-
 ## Features in Detail
 
 ### Emoji Challenges (13 variations)
