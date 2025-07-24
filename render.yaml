@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: telegram-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py
+    envVars:
+      - key: DEPLOYMENT_PLATFORM
+        value: render
+      - key: STARTUP_DELAY
+        value: 5
+      - key: HTTP_PORT
+        fromService:
+          type: web
+          property: port
+    healthCheckPath: /health
+    numInstances: 1  # CRITICAL: Only run one instance to avoid conflicts
+    plan: starter  # or free
+    region: oregon  # Choose your preferred region 

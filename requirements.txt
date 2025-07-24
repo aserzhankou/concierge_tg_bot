@@ -1,3 +1,4 @@
 python-telegram-bot[job-queue]==22.3
 aiohttp>=3.8.0  # For HTTP server and healthcheck endpoint
-openai>=1.0.0  # Used for DeepSeek API (OpenAI-compatible) 
+openai>=1.0.0  # Used for DeepSeek API (OpenAI-compatible)
+requests>=2.25.0  # For webhook management 
