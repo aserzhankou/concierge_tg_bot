@@ -10,7 +10,7 @@ A Telegram bot that protects channels from spam by requiring new members to solv
 - **Russian Localization**: All messages and challenges in Russian
 - **Comprehensive Logging**: Structured JSON logs with rotation
 - **Health Check**: Built-in HTTP server for monitoring
-- **Clean Architecture**: Organized codebase with separate config and message files
+- **Modular Architecture**: Clean, organized codebase with separated concerns
 
 ## Project Structure
 
@@ -22,7 +22,11 @@ telegram_bot/
 ├── storage.py          # SQLite database operations
 ├── requirements.txt    # Python dependencies
 ├── setup.cfg          # Flake8 configuration
-└── logs/              # Log files directory
+├── db/                 # Database files
+│   └── challenges.db   # SQLite database
+├── gpt/                # AI/GPT functionality
+│   └── deepseek.py     # DeepSeek API integration
+└── logs/               # Log files directory
 ```
 
 ## Setup
@@ -76,6 +80,40 @@ LOG_LEVEL = logging.DEBUG # Full log details
 4. **AI Analysis**: DeepSeek AI evaluates messages using a custom Russian prompt for HOA communities
 5. **Auto-Moderation**: Spam detection triggers automatic ban and cleanup
 
+## Architecture Components
+
+### Core Bot (`bot.py`)
+- Main application logic
+- Telegram handlers and callbacks
+- User management and challenge system
+- Integration with all modules
+
+### Configuration (`config.py`)
+- Centralized settings management
+- Environment variable handling
+- Debug/production configuration
+
+### Messages (`messages.py`)
+- All user-facing text constants
+- Emoji challenge definitions
+- Localized Russian content
+
+### Database (`db/`)
+- SQLite database storage
+- Challenge tracking
+- User spam monitoring data
+
+### AI Integration (`gpt/`)
+- **`deepseek.py`**: DeepSeek API wrapper
+- Spam detection logic
+- AI response processing
+- Connection testing and validation
+
+### Storage (`storage.py`)
+- Database abstraction layer
+- Thread-safe operations
+- Data persistence management
+
 ## Features in Detail
 
 ### Emoji Challenges (13 variations)
@@ -88,6 +126,7 @@ LOG_LEVEL = logging.DEBUG # Full log details
 - **Intelligent**: Distinguishes between neighbor help and commercial spam
 - **Russian Language**: Native Russian prompt and analysis
 - **Conservative**: Allows community discussion while blocking obvious spam
+- **Modular**: Separated into dedicated `gpt/deepseek.py` module
 
 ## API Requirements
 
@@ -119,6 +158,13 @@ Or without DeepSeek:
 🛡️ Basic protection: Emoji challenges only
 ```
 
+## Data Storage
+
+- **Database Location**: `db/challenges.db`
+- **Format**: SQLite database
+- **Tables**: Challenges, tracked users, spam monitoring
+- **Backup**: Automatic with database file
+
 ## Logging
 
 - **Location**: `logs/` directory
@@ -133,4 +179,13 @@ HTTP health endpoint available at:
 http://localhost:8080/health
 ```
 
-Returns bot status and last activity information. 
+Returns bot status and last activity information.
+
+## Development
+
+The modular structure makes development easier:
+
+- **Add new AI providers**: Create new files in `gpt/` directory
+- **Extend storage**: Modify `storage.py` for new data types
+- **Update messages**: Edit `messages.py` for new languages/content
+- **Adjust configuration**: Centralized in `config.py` 

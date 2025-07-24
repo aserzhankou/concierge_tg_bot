@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class ChallengeStorage:
     def __init__(self, db_path="challenges.db"):
-        self.db_path = db_path
+        self.db_path = 'db/challenges.db'
         self.lock = threading.Lock()
         self._init_db()
 

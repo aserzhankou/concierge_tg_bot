@@ -16,19 +16,15 @@ import traceback
 import messages
 from aiohttp import web
 
-# DeepSeek for spam detection (uses OpenAI-compatible package)
-try:
-    import openai
-    DEEPSEEK_AVAILABLE = True
-except ImportError:
-    DEEPSEEK_AVAILABLE = False
+# Import DeepSeek functionality
+from gpt.deepseek import (
+    initialize_deepseek, detect_spam_with_deepseek, is_deepseek_available
+)
 
 # Import configuration
 from config import (
     debug_mode, LOG_LEVEL, BOT_TOKEN, HTTP_PORT, MAX_ATTEMPTS,
-    DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL,
-    SPAM_DETECTION_ENABLED, SPAM_TRACKING_MESSAGES, SPAM_TRACKING_DURATION,
-    SPAM_DETECTION_PROMPT
+    SPAM_TRACKING_MESSAGES, SPAM_TRACKING_DURATION
 )
 
 class JsonFormatter(logging.Formatter):
@@ -130,8 +126,7 @@ logger.info(messages.WORKING_DIR_MESSAGE.format(working_dir=os.getcwd()))
 
 # Configuration imported from config.py
 
-# Initialize DeepSeek client (will be validated during startup)
-deepseek_client = None
+# DeepSeek functionality is now handled by gpt.deepseek module
 
 # Initialize storage
 storage = ChallengeStorage()
@@ -190,118 +185,7 @@ async def create_http_server():
     return app
 
 
-async def test_deepseek_connection() -> bool:
-    """Test DeepSeek API connection and validate API key"""
-    if not DEEPSEEK_AVAILABLE:
-        logger.info("OpenAI package not installed - spam detection disabled")
-        return False
-    
-    if not DEEPSEEK_API_KEY:
-        logger.info("DEEPSEEK_API_KEY not set - spam detection disabled")
-        return False
-    
-    if not SPAM_DETECTION_ENABLED:
-        logger.info("Spam detection disabled in configuration")
-        return False
-    
-    try:
-        # Initialize DeepSeek client (using OpenAI-compatible interface)
-        test_client = openai.OpenAI(
-            api_key=DEEPSEEK_API_KEY,
-            base_url=DEEPSEEK_BASE_URL
-        )
-        
-        logger.info("Testing DeepSeek API connection...")
-        
-        # Test with a simple completion request
-        logger.debug("🤖 Testing DeepSeek API with test request...")
-        response = await asyncio.to_thread(
-            test_client.chat.completions.create,
-            model=DEEPSEEK_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a test system."},
-                {"role": "user", "content": "Respond with exactly: TEST"}
-            ],
-            max_tokens=5,
-            temperature=0
-        )
-        
-        result = response.choices[0].message.content.strip()
-        logger.debug(f"🤖 DeepSeek test response: '{result}'")
-        logger.debug(f"🤖 Test tokens used: {response.usage.total_tokens if response.usage else 'N/A'}")
-        
-        if "TEST" in result.upper():
-            logger.info("✅ DeepSeek API connection successful - spam detection enabled")
-            global deepseek_client
-            deepseek_client = test_client
-            return True
-        else:
-            logger.warning(f"❌ DeepSeek API test failed - unexpected response: {result}")
-            return False
-            
-    except openai.AuthenticationError:
-        logger.error("❌ DeepSeek API authentication failed - invalid API key")
-        logger.error("Please check your DEEPSEEK_API_KEY environment variable")
-        return False
-    except openai.RateLimitError:
-        logger.warning("⚠️ DeepSeek API rate limit exceeded - will retry later")
-        logger.warning("Spam detection temporarily disabled")
-        return False
-    except openai.APIError as e:
-        logger.error(f"❌ DeepSeek API error: {str(e)}")
-        return False
-    except Exception as e:
-        logger.error(f"❌ Unexpected error testing DeepSeek connection: {str(e)}")
-        return False
-
-
-async def detect_spam_with_deepseek(message_text: str) -> bool:
-    """Use DeepSeek to detect if a message is spam/advertisement"""
-    if not deepseek_client:
-        return False  # If DeepSeek not available, assume not spam
-
-    try:
-        prompt = SPAM_DETECTION_PROMPT.format(message=message_text)
-        
-        # Log the request details
-        logger.debug(f"🤖 DeepSeek API Request:")
-        logger.debug(f"  Model: {DEEPSEEK_MODEL}")
-        logger.debug(f"  System prompt: Ты система определения спама для Telegram чатов.")
-        logger.debug(f"  User prompt: {prompt}")
-        logger.debug(f"  Message to analyze: '{message_text}'")
-        logger.debug(f"  Max tokens: 10, Temperature: 0.1")
-
-        response = await asyncio.to_thread(
-            deepseek_client.chat.completions.create,
-            model=DEEPSEEK_MODEL,
-            messages=[
-                {"role": "system", "content": "Ты система определения спама для Telegram чатов."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=10,
-            temperature=0.1
-        )
-
-        # Log the response details
-        result = response.choices[0].message.content.strip()
-        is_spam = "SPAM" in result.upper()
-        
-        logger.debug(f"🤖 DeepSeek API Response:")
-        logger.debug(f"  Raw response: '{result}'")
-        logger.debug(f"  Tokens used: {response.usage.total_tokens if response.usage else 'N/A'}")
-        logger.debug(f"  Prompt tokens: {response.usage.prompt_tokens if response.usage else 'N/A'}")
-        logger.debug(f"  Completion tokens: {response.usage.completion_tokens if response.usage else 'N/A'}")
-        logger.debug(f"  Finish reason: {response.choices[0].finish_reason}")
-        logger.debug(f"  Spam detected: {is_spam}")
-
-        logger.info(f"Spam detection result: '{result}' -> {'SPAM' if is_spam else 'SAFE'} "
-                   f"for message: '{message_text[:50]}{'...' if len(message_text) > 50 else ''}'")
-        return is_spam
-
-    except Exception as e:
-        logger.error(f"Error in DeepSeek spam detection: {str(e)}")
-        logger.debug(f"Failed message was: '{message_text}'")
-        return False  # If error, assume not spam to avoid false positives
+# DeepSeek functions moved to gpt/deepseek.py
 
 
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -317,7 +201,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         # Skip if spam detection is disabled
-        if not deepseek_client:
+        if not is_deepseek_available():
             logger.debug(f"🚫 DeepSeek client not available - skipping spam detection for user {user_id}")
             return
 
@@ -378,7 +262,7 @@ async def kick_and_ban_spammer(context: ContextTypes.DEFAULT_TYPE,
         # Send notification to chat
         await context.bot.send_message(
             chat_id=chat_id,
-            text=SPAM_DETECTED_KICK,
+            text=messages.SPAM_DETECTED_KICK,
             disable_notification=True
         )
 
@@ -390,7 +274,7 @@ async def kick_and_ban_spammer(context: ContextTypes.DEFAULT_TYPE,
         try:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=SPAM_DETECTION_ERROR,
+                text=messages.SPAM_DETECTION_ERROR,
                 disable_notification=True
             )
         except Exception:
@@ -400,7 +284,7 @@ async def kick_and_ban_spammer(context: ContextTypes.DEFAULT_TYPE,
 def generate_emoji_challenge():
     """Generate an emoji challenge with question and 4 options"""
     # Pick a random challenge from messages
-    challenge = random.choice(EMOJI_CHALLENGES)
+    challenge = random.choice(messages.EMOJI_CHALLENGES)
 
     # Create options list with correct answer and wrong options
     options = [challenge["correct"]] + challenge["wrong_options"]
@@ -500,7 +384,7 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
                           f"can't restrict members")
             await context.bot.send_message(
                 chat_id,
-                ERR_NOT_SUPERGROUP
+                messages.ERR_NOT_SUPERGROUP
             )
             return
 
@@ -559,7 +443,7 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
             keyboard.append(row)
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        challenge_text = WELCOME_CHALLENGE.format(
+        challenge_text = messages.WELCOME_CHALLENGE.format(
             user_mention=user.mention_html(),
             question=challenge["question"]
         )
@@ -628,7 +512,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                     'event_type': 'challenge_not_found'
                 }
             )
-            await query.answer(ERR_CHALLENGE_EXPIRED, show_alert=True)
+            await query.answer(messages.ERR_CHALLENGE_EXPIRED, show_alert=True)
             return
 
         # Parse callback data
@@ -641,7 +525,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                     'event_type': 'invalid_callback_data'
                 }
             )
-            await query.answer(ERR_INVALID_CALLBACK, show_alert=True)
+            await query.answer(messages.ERR_INVALID_CALLBACK, show_alert=True)
             return
 
         _, chat_id, user_id, answer = parts
@@ -657,7 +541,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                     'event_type': 'wrong_user_answer'
                 }
             )
-            await query.answer(ERR_CHALLENGE_NOT_FOR_YOU, show_alert=True)
+            await query.answer(messages.ERR_CHALLENGE_NOT_FOR_YOU, show_alert=True)
             return
 
         logger.debug(
@@ -690,7 +574,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
 
             # Update challenge message to welcome message
             await context.bot.edit_message_text(
-                CHALLENGE_CORRECT.format(
+                messages.CHALLENGE_CORRECT.format(
                     user_mention=query.from_user.mention_html(),
                     channel_name=query.message.chat.title
                 ),
@@ -710,7 +594,7 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
             storage.remove_challenge(message_id)
 
             # Add user to spam tracking if enabled
-            if deepseek_client:
+            if is_deepseek_available():
                 storage.add_tracked_user(chat_id, user_id, SPAM_TRACKING_DURATION)
                 logger.info(f"✅ Added user {user_id} to spam tracking in chat {chat_id} for {SPAM_TRACKING_DURATION}s")
                 logger.debug(f"🔍 User {user_id} will be monitored for next {SPAM_TRACKING_MESSAGES} messages")
@@ -750,16 +634,16 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
             if attempts >= MAX_ATTEMPTS:
                 # Max attempts reached - kick user
                 await kick_user_max_attempts(context, chat_id, user_id, message_id)
-                await query.answer(CHALLENGE_MAX_ATTEMPTS, show_alert=True)
+                await query.answer(messages.CHALLENGE_MAX_ATTEMPTS, show_alert=True)
             else:
                 # Still have attempts left
                 if remaining_attempts > 0:
                     await query.answer(
-                        CHALLENGE_WRONG_WITH_ATTEMPTS.format(remaining_attempts=remaining_attempts),
+                        messages.CHALLENGE_WRONG_WITH_ATTEMPTS.format(remaining_attempts=remaining_attempts),
                         show_alert=True
                     )
                 else:
-                    await query.answer(CHALLENGE_WRONG, show_alert=True)
+                    await query.answer(messages.CHALLENGE_WRONG, show_alert=True)
 
     except (ValueError, KeyError) as e:
         logger.error(
@@ -947,7 +831,7 @@ async def debug_simulate_join(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     user_id = update.effective_user.id
 
-    logger.info(DEBUG_SIMULATED_JOIN.format(user_id=user_id))
+    logger.info(messages.DEBUG_SIMULATED_JOIN.format(user_id=user_id))
 
     # Create mock member update
     mock_update = Update(
@@ -1011,7 +895,7 @@ async def start_http_server():
 
 def setup_bot_handlers(app):
     """Setup all bot handlers"""
-    logger.debug(LOG_HANDLERS_SETUP)
+    logger.debug(messages.LOG_HANDLERS_SETUP)
     app.add_handler(ChatMemberHandler(restrict_new_member,
                                       ChatMemberHandler.CHAT_MEMBER))
     app.add_handler(MessageHandler(
@@ -1021,22 +905,22 @@ def setup_bot_handlers(app):
                                          pattern=r"^answer_"))
 
     # Add spam detection handler for regular text messages
-    # Always add the handler - it will check if deepseek_client is available when it runs
+    # Always add the handler - it will check if DeepSeek is available when it runs
     app.add_handler(MessageHandler(
         filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND,
         handle_user_message))
     logger.info("Added spam detection message handler")
 
     # Add error handler
-    logger.debug(LOG_ERROR_HANDLER_SETUP)
+    logger.debug(messages.LOG_ERROR_HANDLER_SETUP)
     app.add_error_handler(error_handler)
 
     # Add periodic cleanup job
-    logger.debug(LOG_CLEANUP_JOB_SETUP)
+    logger.debug(messages.LOG_CLEANUP_JOB_SETUP)
     app.job_queue.run_repeating(cleanup_job, interval=60)
 
     if debug_mode:
-        logger.info(LOG_DEBUG_MODE)
+        logger.info(messages.LOG_DEBUG_MODE)
         app.add_handler(CommandHandler('debug_join', debug_simulate_join))
 
 
@@ -1054,11 +938,11 @@ def setup_lifecycle_hooks(app):
             await initialize_deepseek()
             
             # Log final protection status
-            if deepseek_client:
+            if is_deepseek_available():
                 logger.info("🛡️ Full protection: Emoji challenges + AI spam detection")
             else:
                 logger.info("🛡️ Basic protection: Emoji challenges only")
-            
+                
             # Start HTTP server
             http_runner = await start_http_server()
             bot_health['status'] = 'running'
@@ -1087,22 +971,12 @@ def setup_lifecycle_hooks(app):
     app.post_stop = post_stop
 
 
-async def initialize_deepseek():
-    """Initialize DeepSeek during startup"""
-    logger.info(DEEPSEEK_CHECK_MESSAGE)
-    deepseek_status = await test_deepseek_connection()
-    
-    if deepseek_status:
-        logger.info("🤖 AI-powered spam detection is active")
-    else:
-        logger.info("📝 Basic protection mode (no AI spam detection)")
-    
-    return deepseek_status
+# initialize_deepseek function moved to gpt/deepseek.py
 
 
 def main():
     try:
-        logger.info(BOT_INIT_MESSAGE)
+        logger.info(messages.BOT_INIT_MESSAGE)
         
         # DeepSeek will be initialized after bot starts
         
@@ -1116,7 +990,7 @@ def main():
         setup_lifecycle_hooks(app)
         
         # Log initial startup status
-        logger.info(BOT_INIT_COMPLETE)
+        logger.info(messages.BOT_INIT_COMPLETE)
 
         # Run the bot (this handles the event loop properly)
         app.run_polling(
