@@ -14,8 +14,8 @@ debug_mode = DEBUG_MODE
 # =====================================
 # BOT CONFIGURATION
 # =====================================
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
-HTTP_PORT = int(os.getenv('HTTP_PORT', '10000'))  # HTTP server port
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+HTTP_PORT = int(os.getenv("HTTP_PORT", "10000"))  # HTTP server port
 
 # Challenge settings
 MAX_ATTEMPTS = 2  # Maximum number of wrong attempts before kicking user
@@ -32,7 +32,7 @@ ALLOWED_CHAT_IDS = []
 # =====================================
 # DEEPSEEK API CONFIGURATION
 # =====================================
-DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-chat"
 
@@ -77,13 +77,15 @@ SPAM_DETECTION_PROMPT = """
 # List of admin user IDs who can use admin commands like /health
 # Set via environment variable ADMIN_USER_IDS (comma-separated)
 # Example: ADMIN_USER_IDS="123456789,987654321"
-ADMIN_USER_IDS_STR = os.getenv('ADMIN_USER_IDS', '')
+ADMIN_USER_IDS_STR = os.getenv("ADMIN_USER_IDS", "")
 
 # Parse admin user IDs from environment variable
 ADMIN_USER_IDS = []
 if ADMIN_USER_IDS_STR:
     try:
-        ADMIN_USER_IDS = [int(uid.strip()) for uid in ADMIN_USER_IDS_STR.split(',') if uid.strip()]
+        ADMIN_USER_IDS = [
+            int(uid.strip()) for uid in ADMIN_USER_IDS_STR.split(",") if uid.strip()
+        ]
         print(f"✅ Loaded {len(ADMIN_USER_IDS)} admin user IDs from environment")
     except ValueError as e:
         print(f"❌ Invalid ADMIN_USER_IDS format: {e}")

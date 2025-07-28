@@ -5,25 +5,30 @@ modifying the strings.
 """
 
 # Error messages
-ERR_NOT_SUPERGROUP = ("⚠️ Этот бот может работать только в супергруппах. "
-                       "Пожалуйста, преобразуйте группу в супергруппу в "
-                       "настройках.")
+ERR_NOT_SUPERGROUP = (
+    "⚠️ Этот бот может работать только в супергруппах. "
+    "Пожалуйста, преобразуйте группу в супергруппу в "
+    "настройках."
+)
 ERR_CHALLENGE_EXPIRED = "Это задание больше недействительно!"
 ERR_CHALLENGE_NOT_FOR_YOU = "Это задание не для вас!"
 ERR_INVALID_CALLBACK = "Неверный формат ответа!"
 ERR_GENERIC = "Извините, что-то пошло не так!"
 
 # Challenge messages
-WELCOME_CHALLENGE = ("Привет, {user_mention}! Чтобы получить "
-                     "доступ к чату, решите простой вопрос:\n<b>{question}</b>"
-                     "\nУ вас есть 3 минуты.")
-CHALLENGE_CORRECT = ("✅ Добро пожаловать в группу {channel_name}, "
-                     "{user_mention}!")
+WELCOME_CHALLENGE = (
+    "Привет, {user_mention}! Чтобы получить "
+    "доступ к чату, решите простой вопрос:\n<b>{question}</b>"
+    "\nУ вас есть 3 минуты."
+)
+CHALLENGE_CORRECT = "✅ Добро пожаловать в группу {channel_name}, " "{user_mention}!"
 CHALLENGE_WRONG = "❌ Неверный ответ, попробуйте ещё раз!"
-CHALLENGE_WRONG_WITH_ATTEMPTS = ("❌ Неверный ответ! Осталось попыток: "
-                                 "{remaining_attempts}")
-CHALLENGE_MAX_ATTEMPTS = ("❌ Исчерпано максимальное количество попыток. "
-                          "Пользователь удален из чата.")
+CHALLENGE_WRONG_WITH_ATTEMPTS = (
+    "❌ Неверный ответ! Осталось попыток: " "{remaining_attempts}"
+)
+CHALLENGE_MAX_ATTEMPTS = (
+    "❌ Исчерпано максимальное количество попыток. " "Пользователь удален из чата."
+)
 CHALLENGE_EXPIRED_BUTTON = "⚠️ Это задание больше недействительно."
 
 # Debug messages
@@ -41,68 +46,64 @@ EMOJI_CHALLENGES = [
     {
         "question": "Что из этого фрукт?",
         "correct": "🍎",
-        "wrong_options": ["🚗", "🏠", "📱"]
+        "wrong_options": ["🚗", "🏠", "📱"],
     },
     {
         "question": "Что из этого животное?",
         "correct": "🐱",
-        "wrong_options": ["🍕", "⚽", "📚"]
+        "wrong_options": ["🍕", "⚽", "📚"],
     },
     {
         "question": "Что из этого транспорт?",
         "correct": "🚗",
-        "wrong_options": ["🍌", "🎵", "🌟"]
+        "wrong_options": ["🍌", "🎵", "🌟"],
     },
-    {
-        "question": "Что из этого еда?",
-        "correct": "🍕",
-        "wrong_options": ["🏠", "📱", "⚽"]
-    },
+    {"question": "Что из этого еда?", "correct": "🍕", "wrong_options": ["🏠", "📱", "⚽"]},
     {
         "question": "Что из этого здание?",
         "correct": "🏠",
-        "wrong_options": ["🐶", "🍎", "🚗"]
+        "wrong_options": ["🐶", "🍎", "🚗"],
     },
     {
         "question": "Что из этого растение?",
         "correct": "🌳",
-        "wrong_options": ["📱", "⚽", "🚗"]
+        "wrong_options": ["📱", "⚽", "🚗"],
     },
     {
         "question": "Что из этого спортивный предмет?",
         "correct": "⚽",
-        "wrong_options": ["🍎", "🏠", "📚"]
+        "wrong_options": ["🍎", "🏠", "📚"],
     },
     {
         "question": "Что из этого можно читать?",
         "correct": "📚",
-        "wrong_options": ["🍕", "🐱", "🌟"]
+        "wrong_options": ["🍕", "🐱", "🌟"],
     },
     {
         "question": "Что из этого погодное явление?",
         "correct": "☀️",
-        "wrong_options": ["🍎", "🚗", "📱"]
+        "wrong_options": ["🍎", "🚗", "📱"],
     },
     {
         "question": "Что из этого музыкальный инструмент?",
         "correct": "🎸",
-        "wrong_options": ["🍕", "🏠", "⚽"]
+        "wrong_options": ["🍕", "🏠", "⚽"],
     },
     {
         "question": "Что из этого одежда?",
         "correct": "👕",
-        "wrong_options": ["🌳", "📚", "🐱"]
+        "wrong_options": ["🌳", "📚", "🐱"],
     },
     {
         "question": "Что из этого напиток?",
         "correct": "☕",
-        "wrong_options": ["🚗", "🏠", "⚽"]
+        "wrong_options": ["🚗", "🏠", "⚽"],
     },
     {
         "question": "Что из этого показывает эмоцию?",
         "correct": "😊",
-        "wrong_options": ["🍎", "📱", "🌳"]
-    }
+        "wrong_options": ["🍎", "📱", "🌳"],
+    },
 ]
 
 # Startup messages

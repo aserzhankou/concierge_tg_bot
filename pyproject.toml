@@ -6,4 +6,4 @@ requires-python = ">=3.9"  # Python 3.9+ for better async support and type hints
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta" 
+build-backend = "setuptools.build_meta"
