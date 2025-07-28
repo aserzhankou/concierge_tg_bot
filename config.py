@@ -27,7 +27,7 @@ CHALLENGE_TIMEOUT = 180  # Challenge timeout in seconds (3 minutes)
 # List of allowed chat IDs (as strings or integers)
 # Set to empty list [] to allow all chats
 # Example: ALLOWED_CHAT_IDS = [-1001234567890, -1009876543210]
-ALLOWED_CHAT_IDS = []
+ALLOWED_CHAT_IDS = [-1002463140822]
 
 # =====================================
 # DEEPSEEK API CONFIGURATION
