@@ -86,7 +86,7 @@ LOG_LEVEL = logging.DEBUG # Full log details
 
 ### Emoji Challenges (13 variations)
 - 🍎 Fruit, 🐱 Animal, 🚗 Transport, 🍕 Food
-- 🏠 Building, 🌳 Plant, ⚽ Sports, 📚 Reading  
+- 🏠 Building, 🌳 Plant, ⚽ Sports, 📚 Reading
 - ☀️ Weather, 🎸 Music, 👕 Clothing, ☕ Drinks, 😊 Emotions
 
 ### AI Spam Detection
@@ -122,7 +122,7 @@ Bot is ready to process updates
 
 Or without DeepSeek:
 ```
-📝 Basic protection mode (no AI spam detection)  
+📝 Basic protection mode (no AI spam detection)
 🛡️ Basic protection: Emoji challenges only
 ```
 
@@ -162,10 +162,10 @@ To limit your bot to specific chats only:
    ```python
    # Allow only your group
    ALLOWED_CHAT_IDS = [-1001234567890]
-   
-   # Allow multiple groups  
+
+   # Allow multiple groups
    ALLOWED_CHAT_IDS = [-1001234567890, -1009876543210]
-   
+
    # Allow all chats (default)
    ALLOWED_CHAT_IDS = []
    ```
@@ -179,4 +179,4 @@ The modular structure makes development easier:
 - **Add new AI providers**: Create new files in `gpt/` directory
 - **Extend storage**: Modify `storage.py` for new data types
 - **Update messages**: Edit `messages.py` for new languages/content
-- **Adjust configuration**: Centralized in `config.py` 
+- **Adjust configuration**: Centralized in `config.py`

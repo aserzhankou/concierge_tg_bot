@@ -9,14 +9,15 @@ logger = logging.getLogger(__name__)
 
 class ChallengeStorage:
     def __init__(self, db_path="challenges.db"):
-        self.db_path = 'db/challenges.db'
+        self.db_path = "db/challenges.db"
         self.lock = threading.Lock()
         self._init_db()
 
     def _init_db(self):
         """Initialize the database with required tables"""
         with self._get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS challenges (
                     message_id INTEGER PRIMARY KEY,
                     chat_id INTEGER NOT NULL,
@@ -26,10 +27,12 @@ class ChallengeStorage:
                     created_at TIMESTAMP NOT NULL,
                     expires_at TIMESTAMP NOT NULL
                 )
-            """)
+            """
+            )
 
             # Table for tracking recently joined users for spam detection
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS tracked_users (
                     chat_id INTEGER NOT NULL,
                     user_id INTEGER NOT NULL,
@@ -38,7 +41,8 @@ class ChallengeStorage:
                     expires_at TIMESTAMP NOT NULL,
                     PRIMARY KEY (chat_id, user_id)
                 )
-            """)
+            """
+            )
             conn.commit()
 
     @contextmanager
@@ -51,8 +55,14 @@ class ChallengeStorage:
             finally:
                 conn.close()
 
-    def add_challenge(self, message_id: int, chat_id: int, user_id: int,
-                      answer: int, expires_in_seconds: int = 180):
+    def add_challenge(
+        self,
+        message_id: int,
+        chat_id: int,
+        user_id: int,
+        answer: int,
+        expires_in_seconds: int = 180,
+    ):
         """Add a new challenge to storage"""
         created_at = datetime.now()
         expires_at = datetime.now().timestamp() + expires_in_seconds
@@ -66,29 +76,42 @@ class ChallengeStorage:
                      created_at, expires_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (message_id, chat_id, user_id, answer, 0,
-                     created_at.isoformat(), expires_at)
+                    (
+                        message_id,
+                        chat_id,
+                        user_id,
+                        answer,
+                        0,
+                        created_at.isoformat(),
+                        expires_at,
+                    ),
                 )
                 conn.commit()
-                logger.debug(f"Added challenge for message {message_id} "
-                            f"to database")
+                logger.debug(
+                    f"Added challenge for message {message_id} " f"to database"
+                )
             except sqlite3.IntegrityError:
-                logger.warning(f"Challenge with message_id {message_id} "
-                              f"already exists")
+                logger.warning(
+                    f"Challenge with message_id {message_id} " f"already exists"
+                )
 
     def increment_attempts(self, message_id: int) -> int:
         """Increment attempt count for a challenge and return new count"""
         with self._get_connection() as conn:
             # Use atomic operation with RETURNING clause
             cursor = conn.execute(
-                ("UPDATE challenges SET attempts = attempts + 1 "
-                 "WHERE message_id = ? RETURNING attempts"),
-                (message_id,)
+                (
+                    "UPDATE challenges SET attempts = attempts + 1 "
+                    "WHERE message_id = ? RETURNING attempts"
+                ),
+                (message_id,),
             )
             row = cursor.fetchone()
             if not row:
-                logger.warning(f"Attempted to increment attempts for "
-                              f"non-existent challenge {message_id}")
+                logger.warning(
+                    f"Attempted to increment attempts for "
+                    f"non-existent challenge {message_id}"
+                )
                 return 0
             conn.commit()
             return row[0]
@@ -97,29 +120,25 @@ class ChallengeStorage:
         """Get challenge by message ID"""
         with self._get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM challenges WHERE message_id = ?",
-                (message_id,)
+                "SELECT * FROM challenges WHERE message_id = ?", (message_id,)
             )
             row = cursor.fetchone()
             if row:
                 return {
-                    'message_id': row[0],
-                    'chat_id': row[1],
-                    'user_id': row[2],
-                    'answer': row[3],
-                    'attempts': row[4] if row[4] is not None else 0,
-                    'created_at': datetime.fromisoformat(str(row[5])),
-                    'expires_at': row[6]
+                    "message_id": row[0],
+                    "chat_id": row[1],
+                    "user_id": row[2],
+                    "answer": row[3],
+                    "attempts": row[4] if row[4] is not None else 0,
+                    "created_at": datetime.fromisoformat(str(row[5])),
+                    "expires_at": row[6],
                 }
             return None
 
     def remove_challenge(self, message_id: int):
         """Remove a challenge from storage"""
         with self._get_connection() as conn:
-            conn.execute(
-                "DELETE FROM challenges WHERE message_id = ?",
-                (message_id,)
-            )
+            conn.execute("DELETE FROM challenges WHERE message_id = ?", (message_id,))
             conn.commit()
             logger.debug(f"Removed challenge {message_id} from database")
 
@@ -127,10 +146,7 @@ class ChallengeStorage:
         """Remove all expired challenges"""
         current_time = datetime.now().timestamp()
         with self._get_connection() as conn:
-            conn.execute(
-                "DELETE FROM challenges WHERE expires_at < ?",
-                (current_time,)
-            )
+            conn.execute("DELETE FROM challenges WHERE expires_at < ?", (current_time,))
             conn.commit()
 
     def get_user_challenges(self, chat_id: int, user_id: int):
@@ -141,22 +157,26 @@ class ChallengeStorage:
                 SELECT * FROM challenges
                 WHERE chat_id = ? AND user_id = ? AND expires_at > ?
                 """,
-                (chat_id, user_id, datetime.now().timestamp())
+                (chat_id, user_id, datetime.now().timestamp()),
             )
             results = []
             for row in cursor.fetchall():
-                results.append({
-                    'message_id': row[0],
-                    'chat_id': row[1],
-                    'user_id': row[2],
-                    'answer': row[3],
-                    'attempts': row[4] if row[4] is not None else 0,
-                    'created_at': datetime.fromisoformat(str(row[5])),
-                    'expires_at': row[6]
-                })
+                results.append(
+                    {
+                        "message_id": row[0],
+                        "chat_id": row[1],
+                        "user_id": row[2],
+                        "answer": row[3],
+                        "attempts": row[4] if row[4] is not None else 0,
+                        "created_at": datetime.fromisoformat(str(row[5])),
+                        "expires_at": row[6],
+                    }
+                )
             return results
 
-    def add_tracked_user(self, chat_id: int, user_id: int, tracking_duration: int = 86400):
+    def add_tracked_user(
+        self, chat_id: int, user_id: int, tracking_duration: int = 86400
+    ):
         """Add a user to spam tracking after they complete challenge"""
         joined_at = datetime.now()
         expires_at = joined_at.timestamp() + tracking_duration
@@ -169,7 +189,7 @@ class ChallengeStorage:
                     (chat_id, user_id, message_count, joined_at, expires_at)
                     VALUES (?, ?, ?, ?, ?)
                     """,
-                    (chat_id, user_id, 0, joined_at.isoformat(), expires_at)
+                    (chat_id, user_id, 0, joined_at.isoformat(), expires_at),
                 )
                 conn.commit()
                 logger.debug(f"Added user {user_id} to spam tracking in chat {chat_id}")
@@ -180,10 +200,12 @@ class ChallengeStorage:
         """Increment message count for tracked user and return new count"""
         with self._get_connection() as conn:
             cursor = conn.execute(
-                ("UPDATE tracked_users SET message_count = message_count + 1 "
-                 "WHERE chat_id = ? AND user_id = ? AND expires_at > ? "
-                 "RETURNING message_count"),
-                (chat_id, user_id, datetime.now().timestamp())
+                (
+                    "UPDATE tracked_users SET message_count = message_count + 1 "
+                    "WHERE chat_id = ? AND user_id = ? AND expires_at > ? "
+                    "RETURNING message_count"
+                ),
+                (chat_id, user_id, datetime.now().timestamp()),
             )
             row = cursor.fetchone()
             if not row:
@@ -199,16 +221,16 @@ class ChallengeStorage:
                 SELECT * FROM tracked_users
                 WHERE chat_id = ? AND user_id = ? AND expires_at > ?
                 """,
-                (chat_id, user_id, datetime.now().timestamp())
+                (chat_id, user_id, datetime.now().timestamp()),
             )
             row = cursor.fetchone()
             if row:
                 return {
-                    'chat_id': row[0],
-                    'user_id': row[1],
-                    'message_count': row[2],
-                    'joined_at': datetime.fromisoformat(str(row[3])),
-                    'expires_at': row[4]
+                    "chat_id": row[0],
+                    "user_id": row[1],
+                    "message_count": row[2],
+                    "joined_at": datetime.fromisoformat(str(row[3])),
+                    "expires_at": row[4],
                 }
             return None
 
@@ -217,7 +239,7 @@ class ChallengeStorage:
         with self._get_connection() as conn:
             conn.execute(
                 "DELETE FROM tracked_users WHERE chat_id = ? AND user_id = ?",
-                (chat_id, user_id)
+                (chat_id, user_id),
             )
             conn.commit()
             logger.debug(f"Removed user {user_id} from spam tracking in chat {chat_id}")
@@ -227,8 +249,7 @@ class ChallengeStorage:
         current_time = datetime.now().timestamp()
         with self._get_connection() as conn:
             cursor = conn.execute(
-                "DELETE FROM tracked_users WHERE expires_at < ?",
-                (current_time,)
+                "DELETE FROM tracked_users WHERE expires_at < ?", (current_time,)
             )
             deleted_count = cursor.rowcount
             conn.commit()
