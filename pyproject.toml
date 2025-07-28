@@ -1,6 +1,6 @@
 [project]
 name = "telegram_bot"
-version = "0.1.0"
+version = "0.1.1"
 description = "Telegram bot for group protection with math challenges"
 requires-python = ">=3.9"  # Python 3.9+ for better async support and type hints
 

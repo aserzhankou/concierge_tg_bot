@@ -70,3 +70,21 @@ SPAM_DETECTION_PROMPT = """
 Ответь только "SPAM" или "CLEAN". Будь снисходительным к соседскому общению, \
 строгим к коммерции.
 """
+
+# =====================================
+# ADMIN CONFIGURATION
+# =====================================
+# List of admin user IDs who can use admin commands like /health
+# Set via environment variable ADMIN_USER_IDS (comma-separated)
+# Example: ADMIN_USER_IDS="123456789,987654321"
+ADMIN_USER_IDS_STR = os.getenv('ADMIN_USER_IDS', '')
+
+# Parse admin user IDs from environment variable
+ADMIN_USER_IDS = []
+if ADMIN_USER_IDS_STR:
+    try:
+        ADMIN_USER_IDS = [int(uid.strip()) for uid in ADMIN_USER_IDS_STR.split(',') if uid.strip()]
+        print(f"✅ Loaded {len(ADMIN_USER_IDS)} admin user IDs from environment")
+    except ValueError as e:
+        print(f"❌ Invalid ADMIN_USER_IDS format: {e}")
+        ADMIN_USER_IDS = []

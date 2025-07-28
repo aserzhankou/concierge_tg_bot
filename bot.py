@@ -25,7 +25,7 @@ from gpt.deepseek import (
 from config import (
     debug_mode, LOG_LEVEL, BOT_TOKEN, HTTP_PORT, MAX_ATTEMPTS,
     SPAM_TRACKING_MESSAGES, SPAM_TRACKING_DURATION,
-    ALLOWED_CHAT_IDS, CHALLENGE_TIMEOUT
+    ALLOWED_CHAT_IDS, CHALLENGE_TIMEOUT, ADMIN_USER_IDS
 )
 
 class JsonFormatter(logging.Formatter):
@@ -166,7 +166,7 @@ def is_chat_authorized(update: Update) -> bool:
     
     # Log unauthorized access attempt (but do nothing else)
     logger.debug(
-        f"🚫 Ignoring update from unauthorized chat {chat_id}",
+        messages.UNAUTHORIZED_CHAT_IGNORED.format(chat_id=chat_id),
         extra={
             'chat_id': chat_id,
             'chat_title': update.effective_chat.title if update.effective_chat else None,
@@ -899,6 +899,37 @@ async def debug_simulate_join(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await restrict_new_member(mock_update, context)
 
+async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command to show bot health statistics - admin only, DM only"""
+    # Only allow in private chats (DMs)
+    if update.effective_chat.type != 'private':
+        await update.message.reply_text(messages.HEALTH_DM_ONLY)
+        return
+
+    user_id = update.effective_user.id
+    
+    # Check if user is admin
+    if ADMIN_USER_IDS and user_id not in ADMIN_USER_IDS:
+        logger.warning(f"Unauthorized health command attempt by user {user_id}")
+        await update.message.reply_text(messages.HEALTH_ACCESS_DENIED)
+        return
+
+    uptime = datetime.now() - bot_health['start_time']
+    uptime_hours = int(uptime.total_seconds() // 3600)
+    uptime_minutes = int((uptime.total_seconds() % 3600) // 60)
+    uptime_str = f"{uptime_hours}h {uptime_minutes}m"
+    
+    health_text = messages.HEALTH_STATUS_TEMPLATE.format(
+        status=bot_health['status'].upper(),
+        uptime=uptime_str,
+        challenges_processed=bot_health['challenges_processed'],
+        errors_count=bot_health['errors_count'],
+        last_update=bot_health['last_update'].strftime('%H:%M:%S')
+    )
+    
+    await update.message.reply_text(health_text, parse_mode='Markdown')
+    logger.info(f"Health status requested by admin {user_id}")
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Log the error and send a telegram message to notify the developer."""
     # Update error count
@@ -974,6 +1005,9 @@ def setup_bot_handlers(app):
     if debug_mode:
         logger.info(messages.LOG_DEBUG_MODE)
         app.add_handler(CommandHandler('debug_join', debug_simulate_join))
+    
+    # Add health command for all users
+    app.add_handler(CommandHandler('health', health_command))
 
 
 def setup_lifecycle_hooks(app):

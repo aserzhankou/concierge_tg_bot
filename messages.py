@@ -123,3 +123,18 @@ LOG_DEBUG_MODE = "Running in debug mode"
 # Spam detection messages
 SPAM_DETECTED_KICK = "🚫 Пользователь удален за отправку рекламы/спама"
 SPAM_DETECTION_ERROR = "⚠️ Ошибка при проверке сообщения на спам"
+
+# Admin command messages
+HEALTH_DM_ONLY = "⚠️ Эта команда доступна только в личных сообщениях с ботом."
+HEALTH_ACCESS_DENIED = "⛔ Доступ запрещен. Эта команда только для администраторов."
+HEALTH_STATUS_TEMPLATE = """🤖 **Статус бота**
+
+**Статус:** {status}
+**Время работы:** {uptime}
+**Обработано заданий:** {challenges_processed}
+**Ошибок:** {errors_count}
+**Последнее обновление:** {last_update}
+"""
+
+# Logging messages
+UNAUTHORIZED_CHAT_IGNORED = "🚫 Ignoring update from unauthorized chat {chat_id}"
