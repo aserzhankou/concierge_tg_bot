@@ -1,8 +1,9 @@
 name: Pylint
 
-on: [push]
-  branches:
-    - render-deployment
+on:
+  push:
+    branches:
+      - render-deployment
 
 jobs:
   build:
