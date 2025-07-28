@@ -19,7 +19,7 @@ HTTP_PORT = int(os.getenv('HTTP_PORT', '10000'))  # HTTP server port
 
 # Challenge settings
 MAX_ATTEMPTS = 2  # Maximum number of wrong attempts before kicking user
-CHALLENGE_TIMEOUT = 60  # Challenge timeout in seconds (1 minute)
+CHALLENGE_TIMEOUT = 180  # Challenge timeout in seconds (3 minutes)
 
 # =====================================
 # CHAT RESTRICTIONS

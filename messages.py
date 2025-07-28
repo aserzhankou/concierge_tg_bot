@@ -14,10 +14,10 @@ ERR_INVALID_CALLBACK = "Неверный формат ответа!"
 ERR_GENERIC = "Извините, что-то пошло не так!"
 
 # Challenge messages
-WELCOME_CHALLENGE = ("Добро пожаловать, {user_mention}! Чтобы получить "
+WELCOME_CHALLENGE = ("Привет, {user_mention}! Чтобы получить "
                      "доступ к чату, решите простой вопрос:\n<b>{question}</b>"
                      "\nУ вас есть 3 минуты.")
-CHALLENGE_CORRECT = ("✅ Все верно! Добро пожаловать в группу {channel_name}, "
+CHALLENGE_CORRECT = ("✅ Добро пожаловать в группу {channel_name}, "
                      "{user_mention}!")
 CHALLENGE_WRONG = "❌ Неверный ответ, попробуйте ещё раз!"
 CHALLENGE_WRONG_WITH_ATTEMPTS = ("❌ Неверный ответ! Осталось попыток: "

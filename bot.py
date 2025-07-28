@@ -25,7 +25,7 @@ from gpt.deepseek import (
 from config import (
     debug_mode, LOG_LEVEL, BOT_TOKEN, HTTP_PORT, MAX_ATTEMPTS,
     SPAM_TRACKING_MESSAGES, SPAM_TRACKING_DURATION,
-    ALLOWED_CHAT_IDS
+    ALLOWED_CHAT_IDS, CHALLENGE_TIMEOUT
 )
 
 class JsonFormatter(logging.Formatter):
@@ -510,10 +510,10 @@ async def process_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE,
             answer=challenge["correct_answer"]  # Store the correct index (0-3)
         )
 
-        # Set up a 3-minute timer
+        # Set up challenge timeout timer
         context.job_queue.run_once(
             kick_user_job,
-            180,
+            CHALLENGE_TIMEOUT,
             data={'message_id': message_id}
         )
 
@@ -631,10 +631,10 @@ async def handle_answer_callback(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode="HTML"
             )
 
-            # Schedule deletion of welcome message after 3 minutes
+            # Schedule deletion of welcome message after challenge timeout
             context.job_queue.run_once(
                 delete_welcome_message_job,
-                180,
+                CHALLENGE_TIMEOUT,
                 data={'message_id': message_id, 'chat_id': chat_id}
             )
 
